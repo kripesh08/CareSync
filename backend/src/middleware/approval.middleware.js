@@ -1,7 +1,17 @@
 const pool = require("../config/db");
 
 const checkApproval = async (req, res, next) => {
+  // ✅ SAFETY GUARD
+  if (!req.user || !req.user.role) {
+    return next();
+  }
+
   const { user_id, role } = req.user;
+
+  // ✅ DO NOT CHECK APPROVAL FOR THESE ROLES
+  if (role === "PATIENT" || role === "ADMIN") {
+    return next();
+  }
 
   try {
     if (role === "PHARMACY") {
@@ -10,7 +20,14 @@ const checkApproval = async (req, res, next) => {
         [user_id]
       );
 
-      if (!rows.length || !rows[0].is_approved) {
+      if (!rows.length) {
+        return res.status(403).json({
+          success: false,
+          message: "Pharmacy profile not created",
+        });
+      }
+
+      if (!rows[0].is_approved) {
         return res.status(403).json({
           success: false,
           message: "Pharmacy approval pending",
@@ -24,7 +41,14 @@ const checkApproval = async (req, res, next) => {
         [user_id]
       );
 
-      if (!rows.length || !rows[0].is_approved) {
+      if (!rows.length) {
+        return res.status(403).json({
+          success: false,
+          message: "Hospital profile not created",
+        });
+      }
+
+      if (!rows[0].is_approved) {
         return res.status(403).json({
           success: false,
           message: "Hospital approval pending",
@@ -34,6 +58,7 @@ const checkApproval = async (req, res, next) => {
 
     next();
   } catch (error) {
+    console.error("Approval check error:", error.message);
     return res.status(500).json({
       success: false,
       message: "Approval verification failed",
