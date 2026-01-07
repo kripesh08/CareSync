@@ -1,4 +1,5 @@
 const verificationRepo = require("../repositories/verification.repository");
+const pharmacyRepo = require("../repositories/pharmacy.repository");
 
 /**
  * Upload document (Pharmacy / Hospital)
@@ -27,7 +28,22 @@ const reviewDocument = async (document_id, status) => {
     throw new Error("Invalid document status");
   }
 
-  return verificationRepo.updateDocumentStatus(document_id, status);
+  // Update document status
+  const document = await verificationRepo.updateDocumentStatus(
+    document_id,
+    status
+  );
+
+  // 🔒 AUTO-APPROVE PHARMACY ONLY IF LICENSE IS APPROVED
+  if (
+    document.entity_type === "PHARMACY" &&
+    document.document_type === "LICENSE" &&
+    status === "APPROVED"
+  ) {
+    await pharmacyRepo.approveByUserId(document.user_id);
+  }
+
+  return document;
 };
 
 /**
@@ -45,6 +61,9 @@ const hasApprovedLicense = async (user_id) => {
       doc.status === "APPROVED"
   );
 };
+
+
+
 
 module.exports = {
   upload,

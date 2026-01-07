@@ -1,16 +1,16 @@
-const pharmacyRepo = require("../repositories/pharmacy.repository");
+const pharmacyRepository = require("../repositories/pharmacy.repository");
 
 /**
- * Create pharmacy profile (business logic)
+ * Create pharmacy profile
  */
 const createProfile = async (user_id, data) => {
-  const existing = await pharmacyRepo.findByUserId(user_id);
-
+  // Safety: prevent duplicate profile
+  const existing = await pharmacyRepository.findByUserId(user_id);
   if (existing) {
     throw new Error("Pharmacy profile already exists");
   }
 
-  return pharmacyRepo.createPharmacy({
+  return pharmacyRepository.createPharmacy({
     user_id,
     pharmacy_name: data.pharmacy_name,
     license_number: data.license_number,
@@ -19,6 +19,21 @@ const createProfile = async (user_id, data) => {
   });
 };
 
+/**
+ * Get pharmacy by user_id
+ * Used by dashboard
+ */
+const getByUserId = async (user_id) => {
+  const pharmacy = await pharmacyRepository.findByUserId(user_id);
+
+  if (!pharmacy) {
+    throw new Error("Pharmacy profile not found");
+  }
+
+  return pharmacy;
+};
+
 module.exports = {
   createProfile,
+  getByUserId,
 };

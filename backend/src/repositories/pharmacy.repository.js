@@ -34,7 +34,19 @@ const createPharmacy = async (data) => {
   return rows[0];
 };
 
+const approveByUserId = async (user_id) => {
+  const { rows } = await pool.query(
+    `UPDATE pharmacies
+     SET is_approved = true
+     WHERE user_id = $1
+     RETURNING *`,
+    [user_id]
+  );
+  return rows[0];
+};
+
 module.exports = {
   findByUserId,
   createPharmacy,
+  approveByUserId,
 };
