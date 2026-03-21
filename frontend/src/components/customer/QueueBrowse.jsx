@@ -11,19 +11,23 @@ const QueueBrowse = () => {
   const [loading, setLoading] = useState(true);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedQueue, setSelectedQueue] = useState(null);
-  const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedDateForView, setSelectedDateForView] = useState(new Date().toISOString().split('T')[0]);
   const [prediction, setPrediction] = useState(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
 
+  // Always today — no advance booking
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const todayLabel = today.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const todayDay = today.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+
   useEffect(() => {
     fetchQueues();
-  }, [hospitalId, selectedDateForView]);
+  }, [hospitalId]);
 
   const fetchQueues = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8081/api/queues/hospital/${hospitalId}?date=${selectedDateForView}`, {
+      const response = await fetch(`http://localhost:8081/api/queues/hospital/${hospitalId}?date=${todayStr}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -37,7 +41,6 @@ const QueueBrowse = () => {
         toast.error('Failed to fetch queues');
       }
     } catch (error) {
-      console.error('Error fetching queues:', error);
       toast.error('Error loading queues');
     } finally {
       setLoading(false);
@@ -55,56 +58,39 @@ const QueueBrowse = () => {
         },
         body: JSON.stringify({
           queueId: selectedQueue.queueId,
-          tokenDate: bookingDate
+          tokenDate: todayStr
         })
       });
 
       if (response.ok) {
         const tokenData = await response.json();
-        toast.success('Token booked successfully! Please complete payment.');
         setShowBookingModal(false);
         setPrediction(null);
-        
-        // Redirect to payment
         handlePayment(tokenData.tokenId);
       } else {
         const error = await response.json();
         toast.error(error.message || 'Failed to book token');
       }
     } catch (error) {
-      console.error('Error booking token:', error);
       toast.error('Error booking token');
     }
   };
 
-  const fetchPrediction = async (queueId, date) => {
+  const fetchPrediction = async (queueId) => {
     setLoadingPrediction(true);
     try {
-      // Calculate next token number (booked + 1)
       const queue = queues.find(q => q.queueId === queueId);
       const nextTokenNumber = (queue?.bookedCount || 0) + 1;
-      
-      console.log('Fetching prediction:', { queueId, date, nextTokenNumber });
-      
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:8081/api/admin/data/predict?queueId=${queueId}&date=${date}&tokenNumber=${nextTokenNumber}`,
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
+        `http://localhost:8081/api/admin/data/predict?queueId=${queueId}&date=${todayStr}&tokenNumber=${nextTokenNumber}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
       );
-      
-      console.log('Prediction response status:', response.status);
-      
       if (response.ok) {
-        const data = await response.json();
-        console.log('Prediction data:', data);
-        setPrediction(data);
-      } else {
-        console.error('Prediction failed:', response.status);
+        setPrediction(await response.json());
       }
     } catch (error) {
-      console.error('Error fetching prediction:', error);
+      // prediction is optional, fail silently
     } finally {
       setLoadingPrediction(false);
     }
@@ -113,21 +99,14 @@ const QueueBrowse = () => {
   const handlePayment = async (tokenId) => {
     try {
       const token = localStorage.getItem('token');
-      
-      // Create Razorpay order
       const orderResponse = await fetch(`http://localhost:8081/api/queue-tokens/${tokenId}/create-razorpay-order`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!orderResponse.ok) {
-        toast.error('Failed to create payment order');
-        return;
-      }
+      if (!orderResponse.ok) { toast.error('Failed to create payment order'); return; }
 
       const orderData = await orderResponse.json();
-      
-      // Open Razorpay checkout
       const options = {
         key: orderData.keyId,
         amount: orderData.amount,
@@ -139,17 +118,13 @@ const QueueBrowse = () => {
           try {
             const verifyResponse = await fetch(`http://localhost:8081/api/queue-tokens/${tokenId}/payment`, {
               method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
+              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 razorpayOrderId: response.razorpay_order_id,
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpaySignature: response.razorpay_signature
               })
             });
-
             if (verifyResponse.ok) {
               toast.success('Payment successful! Token confirmed.');
               navigate('/my-tokens');
@@ -158,29 +133,19 @@ const QueueBrowse = () => {
               toast.error(error.message || 'Payment verification failed');
             }
           } catch (error) {
-            console.error('Error verifying payment:', error);
             toast.error('Error verifying payment');
           }
         },
-        prefill: {
-          name: '',
-          email: '',
-          contact: ''
-        },
-        theme: {
-          color: '#3B82F6'
-        }
+        prefill: { name: '', email: '', contact: '' },
+        theme: { color: '#3B82F6' }
       };
 
       const razorpay = new window.Razorpay(options);
       razorpay.open();
-      
-      razorpay.on('payment.failed', function (response) {
+      razorpay.on('payment.failed', (response) => {
         toast.error('Payment failed: ' + response.error.description);
       });
-      
     } catch (error) {
-      console.error('Error processing payment:', error);
       toast.error('Error processing payment');
     }
   };
@@ -193,14 +158,8 @@ const QueueBrowse = () => {
     );
   }
 
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-  // Group queues by department
   const queuesByDepartment = queues.reduce((acc, queue) => {
-    if (!acc[queue.departmentName]) {
-      acc[queue.departmentName] = [];
-    }
+    if (!acc[queue.departmentName]) acc[queue.departmentName] = [];
     acc[queue.departmentName].push(queue);
     return acc;
   }, {});
@@ -218,15 +177,10 @@ const QueueBrowse = () => {
           </h1>
           <p className="text-gray-400 text-sm mt-1">Select a queue to book your token</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-gray-400" />
-          <input
-            type="date"
-            value={selectedDateForView}
-            onChange={(e) => setSelectedDateForView(e.target.value)}
-            min={todayStr}
-            className="input-saas"
-          />
+        {/* Today's date — display only, no picker */}
+        <div className="flex items-center gap-2 text-gray-400 text-sm">
+          <Calendar className="h-4 w-4" />
+          {todayLabel}
         </div>
       </div>
 
@@ -245,8 +199,8 @@ const QueueBrowse = () => {
       {Object.keys(queuesByDepartment).length === 0 ? (
         <div className="text-center py-16 card-saas">
           <Users className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-white">No queues available</h3>
-          <p className="mt-2 text-gray-400">This hospital hasn't set up any queues yet.</p>
+          <h3 className="text-lg font-medium text-white">No queues available today</h3>
+          <p className="mt-2 text-gray-400">This hospital hasn't set up any queues for today.</p>
         </div>
       ) : (
         Object.entries(queuesByDepartment).map(([department, deptQueues]) => (
@@ -259,20 +213,12 @@ const QueueBrowse = () => {
               {deptQueues.map((queue) => {
                 const availableSlots = queue.availableSlots || 0;
                 const bookedCount = queue.bookedCount || 0;
-
-                // Check if selected date's day is in operating days
-                const selectedDay = new Date(selectedDateForView + 'T00:00:00')
-                  .toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
                 const operatesOnDay = !queue.operatingDays ||
-                  queue.operatingDays.split(',').map(d => d.trim()).includes(selectedDay);
-
-                const isPastDate = selectedDateForView < todayStr;
-
+                  queue.operatingDays.split(',').map(d => d.trim()).includes(todayDay);
                 const isAvailable = availableSlots > 0 &&
                   (queue.queueStatus === 'OPEN' || queue.queueStatus === 'ACTIVE') &&
-                  operatesOnDay &&
-                  !isPastDate;
-                
+                  operatesOnDay;
+
                 return (
                   <div key={queue.queueId} className={`bg-gray-800/50 p-4 rounded-lg border ${
                     isAvailable ? 'border-gray-700/50' : 'border-red-500/30'
@@ -282,7 +228,7 @@ const QueueBrowse = () => {
                       <p className="text-xs text-gray-400 mt-1">{queue.description || 'General consultation'}</p>
                       {!operatesOnDay && (
                         <p className="text-xs text-red-400 mt-1 font-medium">
-                          Not operating on {selectedDay.charAt(0) + selectedDay.slice(1).toLowerCase()}s
+                          Not operating on {todayDay.charAt(0) + todayDay.slice(1).toLowerCase()}s
                         </p>
                       )}
                     </div>
@@ -309,9 +255,8 @@ const QueueBrowse = () => {
                     <button
                       onClick={() => {
                         setSelectedQueue(queue);
-                        setBookingDate(selectedDateForView);
                         setShowBookingModal(true);
-                        fetchPrediction(queue.queueId, selectedDateForView);
+                        fetchPrediction(queue.queueId);
                       }}
                       disabled={!isAvailable}
                       className={`w-full text-sm flex items-center justify-center gap-2 ${
@@ -319,7 +264,7 @@ const QueueBrowse = () => {
                       }`}
                     >
                       <Ticket className="h-4 w-4" />
-                      {isAvailable ? 'Book Token' : isPastDate ? 'Past Date' : availableSlots === 0 ? 'Queue Full' : !operatesOnDay ? `Closed on ${selectedDay.charAt(0) + selectedDay.slice(1).toLowerCase()}` : 'Unavailable'}
+                      {isAvailable ? 'Book Token' : availableSlots === 0 ? 'Queue Full' : !operatesOnDay ? `Closed Today` : 'Unavailable'}
                     </button>
                   </div>
                 );
@@ -349,45 +294,14 @@ const QueueBrowse = () => {
                     <span className="text-white font-medium">{selectedQueue.queueName}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-gray-400">Date:</span>
+                    <span className="text-white font-medium">{todayLabel}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-gray-400">Token Fee:</span>
                     <span className="text-emerald-400 font-bold">₹50</span>
                   </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-400 mb-2">
-                  <Calendar className="h-4 w-4 inline mr-2" />
-                  Select Date
-                </label>
-                <input
-                  type="date"
-                  value={bookingDate}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val < todayStr) {
-                      toast.error('Cannot book a token for a past date');
-                      return;
-                    }
-                    const selectedDate = new Date(val + 'T00:00:00');
-                    const dayOfWeek = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
-                    if (selectedQueue.operatingDays && !selectedQueue.operatingDays.includes(dayOfWeek)) {
-                      toast.error(`Queue doesn't operate on ${dayOfWeek.charAt(0) + dayOfWeek.slice(1).toLowerCase()}. Please select a valid operating day.`);
-                      return;
-                    }
-                    setBookingDate(val);
-                    fetchPrediction(selectedQueue.queueId, val);
-                  }}
-                  min={todayStr}
-                  className="input-saas w-full"
-                />
-                {selectedQueue.operatingDays && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    Operating days: {selectedQueue.operatingDays.split(',').map(day => 
-                      day.charAt(0) + day.slice(1).toLowerCase()
-                    ).join(', ')}
-                  </p>
-                )}
               </div>
 
               {/* AI Prediction */}
@@ -396,7 +310,6 @@ const QueueBrowse = () => {
                   <p className="text-sm text-gray-400">Calculating estimated wait time...</p>
                 </div>
               )}
-              
               {prediction && !loadingPrediction && (
                 <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-4 rounded-lg border border-blue-500/20">
                   <div className="flex items-start gap-3">
@@ -434,18 +347,12 @@ const QueueBrowse = () => {
 
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-700/30">
                 <button
-                  onClick={() => {
-                    setShowBookingModal(false);
-                    setSelectedQueue(null);
-                  }}
+                  onClick={() => { setShowBookingModal(false); setSelectedQueue(null); setPrediction(null); }}
                   className="btn-saas-secondary"
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={handleBookToken}
-                  className="btn-saas-primary"
-                >
+                <button onClick={handleBookToken} className="btn-saas-primary">
                   Proceed to Payment
                 </button>
               </div>

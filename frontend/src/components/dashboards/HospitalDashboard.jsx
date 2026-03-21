@@ -193,7 +193,7 @@ const HospitalDashboard = () => {
               <Link
                 key={index}
                 to={action.link}
-                className="group relative bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-purple-100 transition-all duration-200"
+                className="group relative bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-purple-100 transition-all duration-200 no-underline"
               >
                 <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                   <ArrowRight className="h-5 w-5 text-purple-400" />

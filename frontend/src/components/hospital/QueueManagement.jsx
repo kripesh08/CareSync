@@ -387,7 +387,7 @@ const QueueManagement = () => {
                         </span>
                       </div>
                     )}
-                    <div className="pt-2 border-t border-gray-700/50">
+                    <div style={{ borderTop: '1px solid rgba(55, 65, 81, 0.5)', marginTop: '0.75rem', paddingTop: '0.75rem' }}>
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${queue.queueStatus === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
                         queue.queueStatus === 'FULL' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
                           'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
@@ -533,7 +533,7 @@ const QueueManagement = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-700/30">
+                <div className="flex justify-end gap-3 pt-4 border-t-0" style={{ borderTop: '1px solid rgba(55, 65, 81, 0.3)' }}>
                   <button
                     type="button"
                     onClick={() => {

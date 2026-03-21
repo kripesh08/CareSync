@@ -40,7 +40,7 @@ const Layout = () => {
         return {
           sidebarBg: 'bg-gradient-to-b from-red-900 to-gray-900',
           sidebarText: 'text-gray-100',
-          activeItem: 'bg-white/10 text-white shadow-lg border-r-4 border-red-500',
+          activeItem: 'bg-white/10 text-white shadow-lg',
           hoverItem: 'hover:bg-white/5 hover:text-white',
           badge: 'bg-red-900/50 text-red-200 border border-red-700',
           logoutBtn: 'bg-red-700 hover:bg-red-600 shadow-lg'
@@ -49,7 +49,7 @@ const Layout = () => {
         return {
           sidebarBg: 'bg-gradient-to-b from-emerald-900 to-gray-900',
           sidebarText: 'text-gray-100',
-          activeItem: 'bg-white/10 text-white shadow-lg border-r-4 border-emerald-500',
+          activeItem: 'bg-white/10 text-white shadow-lg',
           hoverItem: 'hover:bg-white/5 hover:text-white',
           badge: 'bg-emerald-900/50 text-emerald-200 border border-emerald-700',
           logoutBtn: 'bg-red-700 hover:bg-red-600 shadow-lg'
@@ -58,7 +58,7 @@ const Layout = () => {
         return {
           sidebarBg: 'bg-gradient-to-b from-purple-900 to-gray-900',
           sidebarText: 'text-gray-100',
-          activeItem: 'bg-white/10 text-white shadow-lg border-r-4 border-purple-500',
+          activeItem: 'bg-white/10 text-white shadow-lg',
           hoverItem: 'hover:bg-white/5 hover:text-white',
           badge: 'bg-purple-900/50 text-purple-200 border border-purple-700',
           logoutBtn: 'bg-red-700 hover:bg-red-600 shadow-lg'
@@ -67,7 +67,7 @@ const Layout = () => {
         return {
           sidebarBg: 'bg-gradient-to-b from-blue-900 to-gray-900',
           sidebarText: 'text-gray-100',
-          activeItem: 'bg-white/10 text-white shadow-lg border-r-4 border-blue-500',
+          activeItem: 'bg-white/10 text-white shadow-lg',
           hoverItem: 'hover:bg-white/5 hover:text-white',
           badge: 'bg-blue-900/50 text-blue-200 border border-blue-700',
           logoutBtn: 'bg-red-700 hover:bg-red-600 shadow-lg'
@@ -76,7 +76,7 @@ const Layout = () => {
         return {
           sidebarBg: 'bg-gradient-to-b from-gray-800 to-gray-900',
           sidebarText: 'text-gray-100',
-          activeItem: 'bg-white/10 text-white shadow-lg border-r-4 border-gray-500',
+          activeItem: 'bg-white/10 text-white shadow-lg',
           hoverItem: 'hover:bg-white/5 hover:text-white',
           badge: 'bg-gray-700 text-gray-200 border border-gray-600',
           logoutBtn: 'bg-red-700 hover:bg-red-600 shadow-lg'
@@ -101,7 +101,7 @@ const Layout = () => {
           { name: 'Medicine Management', href: '/admin/medicines', icon: Pill },
           { name: 'Order Management', href: '/admin/orders', icon: Package },
           { name: 'Queue Management', href: '/admin/queue-management', icon: List },
-          { name: 'Data Management', href: '/admin/data-management', icon: Database },
+//          { name: 'Data Management', href: '/admin/data-management', icon: Database },
         ];
       case 'PATIENT':
         return [
@@ -149,8 +149,7 @@ const Layout = () => {
               <Link
                 key={item.name}
                 to={item.href}
-                className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${isActive ? theme.activeItem : `${theme.hoverItem} ${theme.sidebarText}`
-                  }`}
+                className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 no-underline ${isActive ? theme.activeItem : `${theme.hoverItem} ${theme.sidebarText}`}`}
                 onClick={() => setSidebarOpen(false)}
               >
                 {item.name}
@@ -205,7 +204,7 @@ const Layout = () => {
         <main className="flex-1 bg-gray-900">
 
           {/* Header - Moved INSIDE main content and removed 'sticky' to allow scrolling away */}
-          <header className="bg-gray-800/20 backdrop-blur-xl w-full animate-fade-in relative z-10 transition-all duration-300">
+          <header className="bg-gray-800/20 backdrop-blur-xl w-full animate-fade-in relative z-10 transition-all duration-300 pt-3 pb-1">
             <div className="flex justify-between h-16 px-8 items-center">
               <div className="flex items-center">
                 <h1 className="text-2xl font-bold text-white tracking-tight">
@@ -238,8 +237,7 @@ const Layout = () => {
               </div>
             </div>
 
-            {/* Header bottom subtle glow line instead of border */}
-            <div className="h-px w-full bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent opacity-30 shadow-[0_1px_10px_rgba(16,185,129,0.1)]"></div>
+            {/* Removed subtle glow line as per request */}
           </header>
 
           <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto animate-fade-in">
