@@ -205,7 +205,11 @@ const TokenBoard = () => {
             {waitingTokens.length === 0 ? (
               <p className="text-gray-400 text-center py-8">No tokens waiting</p>
             ) : (
-              waitingTokens.map((token) => (
+              waitingTokens.map((token) => {
+                const queueHasInProgress = inProgressTokens.some(
+                  t => t.queue.queueId === token.queue.queueId
+                );
+                return (
                 <div key={token.tokenId} className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
                   <div className="flex justify-between items-start mb-2">
                     <div>
@@ -220,11 +224,16 @@ const TokenBoard = () => {
                     <div className="text-gray-300">{token.patient.fullName || token.patient.email}</div>
                     {token.patient.phone && <div className="text-gray-400">{token.patient.phone}</div>}
                   </div>
-                  <button onClick={() => handleCallToken(token.tokenId)} className="w-full btn-saas-primary text-sm">
-                    Call Token
+                  <button
+                    onClick={() => handleCallToken(token.tokenId)}
+                    disabled={queueHasInProgress}
+                    className={`w-full text-sm ${queueHasInProgress ? 'btn-saas-secondary opacity-50 cursor-not-allowed' : 'btn-saas-primary'}`}
+                  >
+                    {queueHasInProgress ? 'Complete current token first' : 'Call Token'}
                   </button>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

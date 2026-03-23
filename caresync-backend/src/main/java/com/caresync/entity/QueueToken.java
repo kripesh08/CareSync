@@ -31,7 +31,6 @@ public class QueueToken {
     private User patient;
 
     @Column(name = "token_number")
-    @NotNull(message = "Token number is required")
     private Integer tokenNumber;
 
     @Column(name = "token_date")
@@ -69,10 +68,9 @@ public class QueueToken {
     // Constructors
     public QueueToken() {}
 
-    public QueueToken(Queue queue, User patient, Integer tokenNumber, LocalDate tokenDate, BigDecimal tokenFee) {
+    public QueueToken(Queue queue, User patient, LocalDate tokenDate, BigDecimal tokenFee) {
         this.queue = queue;
         this.patient = patient;
-        this.tokenNumber = tokenNumber;
         this.tokenDate = tokenDate;
         this.tokenFee = tokenFee;
     }

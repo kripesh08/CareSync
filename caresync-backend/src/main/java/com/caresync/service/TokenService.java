@@ -65,36 +65,23 @@ public class TokenService {
             }
         }
         
-        // Check capacity
-        long currentTokens = tokenRepository.countByQueueAndTokenDate(queue, tokenDate);
+        // Check capacity — only count paid tokens
+        long currentTokens = tokenRepository.countByQueueAndTokenDateAndPaymentStatus(queue, tokenDate, QueueToken.PaymentStatus.COMPLETED);
         if (currentTokens >= queue.getMaxCapacity()) {
             throw new RuntimeException("Queue is full for this date");
         }
         
-        // Check if patient already has token for this queue and date
+        // Check if patient already has a pending or active token for this queue and date
         if (tokenRepository.findByQueueAndPatientAndTokenDate(queue, patient, tokenDate).isPresent()) {
             throw new RuntimeException("You already have a token for this queue on this date");
         }
-        
-        // Generate token number
-        Integer nextTokenNumber = tokenRepository.getMaxTokenNumberForQueueAndDate(queue.getQueueId(), tokenDate) + 1;
-        
-        // Calculate estimated time
-        LocalDateTime estimatedTime = calculateEstimatedTime(queue, nextTokenNumber, tokenDate);
-        
-        // Create token
-        QueueToken token = new QueueToken(queue, patient, nextTokenNumber, tokenDate, TOKEN_FEE);
-        token.setEstimatedTime(estimatedTime);
+
+        // Create reservation — token number assigned only after payment
+        QueueToken token = new QueueToken(queue, patient, tokenDate, TOKEN_FEE);
         token.setPaymentStatus(QueueToken.PaymentStatus.PENDING);
         token.setTokenStatus(QueueToken.TokenStatus.WAITING);
-        
-        QueueToken savedToken = tokenRepository.save(token);
-        
-        // Update queue current count
-        queue.setCurrentCount(queue.getCurrentCount() + 1);
-        queueRepository.save(queue);
-        
-        return savedToken;
+
+        return tokenRepository.save(token);
     }
     
     // Process payment (Patient)
@@ -110,11 +97,27 @@ public class TokenService {
             throw new RuntimeException("Payment already completed");
         }
         
+        // Assign token number now — first to pay gets #1
+        Integer nextTokenNumber = tokenRepository.getMaxTokenNumberForQueueAndDate(
+            token.getQueue().getQueueId(), token.getTokenDate()) + 1;
+        token.setTokenNumber(nextTokenNumber);
+
+        // Calculate estimated time based on assigned token number
+        LocalDateTime estimatedTime = calculateEstimatedTime(token.getQueue(), nextTokenNumber, token.getTokenDate());
+        token.setEstimatedTime(estimatedTime);
+
         // Update payment status
         token.setPaymentStatus(QueueToken.PaymentStatus.COMPLETED);
         token.setPaymentTransactionId(razorpayPaymentId);
-        
-        return tokenRepository.save(token);
+
+        QueueToken saved = tokenRepository.save(token);
+
+        // Increment queue count only after confirmed payment
+        Queue queue = token.getQueue();
+        queue.setCurrentCount(queue.getCurrentCount() + 1);
+        queueRepository.save(queue);
+
+        return saved;
     }
     
     // Get patient tokens
@@ -176,6 +179,13 @@ public class TokenService {
         
         if (token.getTokenStatus() != QueueToken.TokenStatus.WAITING) {
             throw new RuntimeException("Token is not in waiting status");
+        }
+
+        // Ensure no other token is already IN_PROGRESS for this queue today
+        List<QueueToken> inProgress = tokenRepository.findByQueueAndTokenDateAndTokenStatus(
+            token.getQueue(), token.getTokenDate(), QueueToken.TokenStatus.IN_PROGRESS);
+        if (!inProgress.isEmpty()) {
+            throw new RuntimeException("Token #" + inProgress.get(0).getTokenNumber() + " is already in progress. Complete it before calling the next token.");
         }
         
         token.setTokenStatus(QueueToken.TokenStatus.IN_PROGRESS);
@@ -262,7 +272,7 @@ public class TokenService {
         }
         
         // Count tokens ahead (WAITING tokens with lower number)
-        if (token.getTokenStatus() == QueueToken.TokenStatus.WAITING) {
+        if (token.getTokenStatus() == QueueToken.TokenStatus.WAITING && token.getTokenNumber() != null) {
             long tokensAhead = tokenRepository.countByQueueAndTokenDateAndTokenStatusAndTokenNumberLessThan(
                 token.getQueue(), token.getTokenDate(), QueueToken.TokenStatus.WAITING, token.getTokenNumber()
             );

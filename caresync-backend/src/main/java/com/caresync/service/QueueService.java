@@ -211,7 +211,7 @@ public class QueueService {
     
     // Get today's booked count for a queue
     public long getTodayBookedCount(Queue queue, LocalDate date) {
-        return queueTokenRepository.countByQueueAndTokenDate(queue, date);
+        return queueTokenRepository.countByQueueAndTokenDateAndPaymentStatus(queue, date, QueueToken.PaymentStatus.COMPLETED);
     }
     
     // ===== QUEUE CLOSURE MANAGEMENT =====

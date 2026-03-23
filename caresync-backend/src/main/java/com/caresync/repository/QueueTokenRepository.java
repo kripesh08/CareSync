@@ -34,11 +34,14 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
     Optional<QueueToken> findByQueueAndPatientAndTokenDate(Queue queue, User patient, LocalDate tokenDate);
     
     // Get next token number for queue and date
-    @Query(value = "SELECT COALESCE(MAX(CAST(token_number AS INTEGER)), 0) FROM queue_tokens WHERE queue_id = :queueId AND token_date = :tokenDate", nativeQuery = true)
+    @Query(value = "SELECT COALESCE(MAX(CAST(token_number AS INTEGER)), 0) FROM queue_tokens WHERE queue_id = :queueId AND token_date = :tokenDate AND token_number IS NOT NULL", nativeQuery = true)
     Integer getMaxTokenNumberForQueueAndDate(@Param("queueId") Long queueId, @Param("tokenDate") LocalDate tokenDate);
     
     // Count tokens by queue and date
     long countByQueueAndTokenDate(Queue queue, LocalDate tokenDate);
+
+    // Count paid tokens by queue and date (used for capacity check)
+    long countByQueueAndTokenDateAndPaymentStatus(Queue queue, LocalDate tokenDate, QueueToken.PaymentStatus paymentStatus);
     
     // Count tokens by status for queue and date
     long countByQueueAndTokenDateAndTokenStatus(Queue queue, LocalDate tokenDate, QueueToken.TokenStatus status);

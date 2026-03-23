@@ -125,28 +125,38 @@ const QueueBrowse = () => {
                 razorpaySignature: response.razorpay_signature
               })
             });
-            if (verifyResponse.ok) {
+    if (verifyResponse.ok) {
               toast.success('Payment successful! Token confirmed.');
               navigate('/my-tokens');
             } else {
               const error = await verifyResponse.json();
               toast.error(error.message || 'Payment verification failed');
             }
-          } catch (error) {
+          } catch (err) {
             toast.error('Error verifying payment');
           }
         },
         prefill: { name: '', email: '', contact: '' },
-        theme: { color: '#3B82F6' }
+        theme: { color: '#3B82F6' },
+        modal: {
+          ondismiss: function () {
+            // User closed the modal — not an error
+            toast.info('Payment cancelled. Your token is reserved for 10 minutes.');
+          }
+        }
       };
 
       const razorpay = new window.Razorpay(options);
-      razorpay.open();
       razorpay.on('payment.failed', (response) => {
         toast.error('Payment failed: ' + response.error.description);
       });
+      razorpay.open();
+      // NOTE: do NOT wrap razorpay.open() result — it throws on modal dismiss which is not an error
     } catch (error) {
-      toast.error('Error processing payment');
+      // Only show error for fetch failures, not Razorpay modal events
+      if (error && error.message && !error.message.includes('modal')) {
+        toast.error('Failed to create payment order');
+      }
     }
   };
 

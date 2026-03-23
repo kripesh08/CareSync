@@ -29,35 +29,41 @@ public class WaitingTimePredictionService {
     public PredictionResult predictWaitingTime(Long queueId, LocalDate tokenDate, Integer tokenNumber) {
         Queue queue = queueRepository.findById(queueId)
                 .orElseThrow(() -> new RuntimeException("Queue not found"));
-        
+
         DayOfWeek dayOfWeek = tokenDate.getDayOfWeek();
-        
+
+        // Count already completed tokens today — these are done, no wait needed for them
+        long completedToday = tokenRepository.countByQueueAndTokenDateAndTokenStatus(
+            queue, tokenDate, QueueToken.TokenStatus.COMPLETED);
+
+        // Tokens actually ahead in queue right now
+        int effectivePosition = Math.max(0, tokenNumber - (int) completedToday - 1);
+
         // Get historical data for this queue
         List<QueueToken> historicalTokens = getHistoricalTokens(queue, dayOfWeek);
-        
+
         if (historicalTokens.isEmpty()) {
-            // No historical data, use basic estimation
-            return getBasicEstimation(queue, tokenNumber);
+            return getBasicEstimation(queue, effectivePosition + 1);
         }
-        
+
         // Calculate average time per token for this day of week
         double avgTimePerToken = calculateAverageTimePerToken(historicalTokens);
-        
+
         // Calculate day-of-week factor
         double dayFactor = calculateDayOfWeekFactor(historicalTokens, dayOfWeek);
-        
-        // Calculate token position factor (early tokens vs late tokens)
-        double positionFactor = calculatePositionFactor(historicalTokens, tokenNumber);
-        
-        // Predict waiting time
-        double predictedMinutes = avgTimePerToken * tokenNumber * dayFactor * positionFactor;
-        
+
+        // Calculate token position factor
+        double positionFactor = calculatePositionFactor(historicalTokens, effectivePosition + 1);
+
+        // Predict waiting time based on effective position (tokens still ahead)
+        double predictedMinutes = avgTimePerToken * (effectivePosition + 1) * dayFactor * positionFactor;
+
         // Calculate confidence based on data availability
         double confidence = calculateConfidence(historicalTokens.size());
-        
+
         // Get peak hours information
         Map<String, Object> peakInfo = analyzePeakHours(historicalTokens);
-        
+
         return new PredictionResult(
             (int) Math.round(predictedMinutes),
             avgTimePerToken,

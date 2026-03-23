@@ -9,20 +9,22 @@ const MyTokens = () => {
 
   useEffect(() => {
     fetchTokens();
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      fetchTokens();
-      fetchQueueStatuses();
-    }, 30000);
-    
-    return () => clearInterval(interval);
+    // Request browser notification permission for token call alerts
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   }, []);
 
+  // Smart polling — 5s if patient has active token, 30s otherwise
   useEffect(() => {
-    if (tokens.length > 0) {
-      fetchQueueStatuses();
-    }
+    const hasActiveToken = tokens.some(t =>
+      t.tokenStatus === 'WAITING' || t.tokenStatus === 'IN_PROGRESS'
+    );
+    const interval = setInterval(() => {
+      fetchTokens(); // fetchQueueStatuses is called inside fetchTokens
+    }, hasActiveToken ? 5000 : 30000);
+
+    return () => clearInterval(interval);
   }, [tokens]);
 
   const fetchTokens = async () => {
@@ -34,7 +36,22 @@ const MyTokens = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setTokens(data);
+
+        // Detect token called (WAITING → IN_PROGRESS) and notify
+        setTokens(prev => {
+          data.forEach(newT => {
+            const old = prev.find(o => o.tokenId === newT.tokenId);
+            if (old?.tokenStatus === 'WAITING' && newT.tokenStatus === 'IN_PROGRESS') {
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('CareSync — Your turn!', {
+                  body: `Token #${newT.tokenNumber} is being called. Please proceed to the consultation room.`,
+                });
+              }
+            }
+          });
+          return data;
+        });
+        fetchQueueStatuses(data);
       } else {
         toast.error('Failed to fetch tokens');
       }
@@ -46,18 +63,18 @@ const MyTokens = () => {
     }
   };
 
-  const fetchQueueStatuses = async () => {
+  const fetchQueueStatuses = async (latestTokens) => {
     const token = localStorage.getItem('token');
     const statuses = {};
-    
-    for (const queueToken of tokens) {
-      // Fetch status for all active/pending tokens
-      if (['WAITING', 'IN_PROGRESS', 'PENDING_PAYMENT'].includes(queueToken.tokenStatus)) {
+    const list = latestTokens || tokens;
+
+    for (const queueToken of list) {
+      if (['WAITING', 'IN_PROGRESS'].includes(queueToken.tokenStatus)) {
         try {
           const response = await fetch(`http://localhost:8081/api/queue-tokens/${queueToken.tokenId}/queue-status`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             statuses[queueToken.tokenId] = data;
@@ -117,26 +134,26 @@ const MyTokens = () => {
             } else {
               toast.error('Payment verification failed');
             }
-          } catch (error) {
-            console.error('Error verifying payment:', error);
+          } catch (err) {
             toast.error('Error verifying payment');
           }
         },
-        theme: {
-          color: '#3B82F6'
+        theme: { color: '#3B82F6' },
+        modal: {
+          ondismiss: function () {
+            toast.info('Payment cancelled. Complete payment to confirm your slot.');
+          }
         }
       };
 
       const razorpay = new window.Razorpay(options);
-      razorpay.open();
-      
       razorpay.on('payment.failed', function (response) {
         toast.error('Payment failed: ' + response.error.description);
       });
+      razorpay.open();
       
     } catch (error) {
-      console.error('Error processing payment:', error);
-      toast.error('Error processing payment');
+      toast.error('Failed to create payment order');
     }
   };
 
@@ -165,7 +182,9 @@ const MyTokens = () => {
 
   const calcEstimatedArrival = (queueStatus) => {
     const { tokensAhead, avgTimePerPatient } = queueStatus;
-    if (tokensAhead == null || !avgTimePerPatient) return null;
+    if (tokensAhead == null) return null;
+    if (tokensAhead === 0) return { time: null, waitMins: 0, tokensAhead: 0 };
+    if (!avgTimePerPatient) return null;
     const waitMins = tokensAhead * avgTimePerPatient;
     const arrival = new Date(Date.now() + waitMins * 60000);
     return {
@@ -254,7 +273,9 @@ const MyTokens = () => {
                         <Ticket className="h-6 w-6 text-blue-400" />
                       </div>
                       <div>
-                        <div className="text-3xl font-bold text-blue-400">#{token.tokenNumber}</div>
+                        <div className="text-3xl font-bold text-blue-400">
+                        {token.tokenNumber ? `#${token.tokenNumber}` : <span className="text-lg text-yellow-400">Pending Payment</span>}
+                      </div>
                         <div className="text-sm text-gray-400">{token.queue.queueName}</div>
                       </div>
                     </div>
@@ -289,11 +310,30 @@ const MyTokens = () => {
                         <Calendar className="h-4 w-4" />
                         {new Date(token.tokenDate).toLocaleDateString()}
                       </div>
-                      {token.estimatedTime && (
-                        <div className="text-gray-400 text-xs mt-1">
-                          Est: {new Date(token.estimatedTime).toLocaleTimeString()}
-                        </div>
-                      )}
+                      {/* Show live estimate if available, else fall back to static */}
+                      {(() => {
+                        const qs = queueStatuses[token.tokenId];
+                        if (token.tokenStatus === 'IN_PROGRESS') {
+                          return <div className="text-yellow-400 text-xs mt-1 font-medium">Your turn now</div>;
+                        }
+                        if (token.tokenStatus === 'WAITING') {
+                          if (qs) {
+                            // Live data available
+                            if (qs.tokensAhead === 0) {
+                              return <div className="text-yellow-400 text-xs mt-1 font-medium">Your turn soon</div>;
+                            }
+                            const live = calcEstimatedArrival(qs);
+                            if (live?.time) {
+                              return <div className="text-blue-400 text-xs mt-1">Est: ~{live.time}</div>;
+                            }
+                          }
+                          // fallback to static while live data loads
+                          if (token.estimatedTime) {
+                            return <div className="text-gray-400 text-xs mt-1">Est: {new Date(token.estimatedTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>;
+                          }
+                        }
+                        return null;
+                      })()}
                     </div>
                   </div>
 
@@ -319,25 +359,29 @@ const MyTokens = () => {
                     return (
                       <div className="mt-3 space-y-2">
                         {/* Estimated arrival — prominent card */}
-                        {arrival && token.tokenStatus !== 'IN_PROGRESS' && (
-                          <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/20 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <Clock className="h-5 w-5 text-blue-400 shrink-0" />
-                              <div>
-                                <p className="text-xs text-gray-400">Estimated time to visit</p>
-                                <p className="text-xl font-bold text-blue-400">{arrival.time}</p>
+                        {token.tokenStatus === 'WAITING' && qs.tokensAhead > 0 && (() => {
+                          const arrival = calcEstimatedArrival(qs);
+                          if (!arrival?.time) return null;
+                          return (
+                            <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/20 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <Clock className="h-5 w-5 text-blue-400 shrink-0" />
+                                <div>
+                                  <p className="text-xs text-gray-400">Estimated time to visit</p>
+                                  <p className="text-xl font-bold text-blue-400">{arrival.time}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-gray-400">Wait</p>
+                                <p className="text-lg font-bold text-white">
+                                  {arrival.waitMins < 60
+                                    ? `~${arrival.waitMins} min`
+                                    : `~${Math.floor(arrival.waitMins / 60)}h ${arrival.waitMins % 60}m`}
+                                </p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-xs text-gray-400">Wait</p>
-                              <p className="text-lg font-bold text-white">
-                                {arrival.waitMins < 60
-                                  ? `~${arrival.waitMins} min`
-                                  : `~${Math.floor(arrival.waitMins / 60)}h ${arrival.waitMins % 60}m`}
-                              </p>
-                            </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {/* Queue progress row */}
                         <div className="grid grid-cols-3 gap-2 text-center">
