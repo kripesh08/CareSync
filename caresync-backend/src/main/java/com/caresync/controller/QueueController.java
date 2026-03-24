@@ -89,6 +89,7 @@ public class QueueController {
                 dto.put("queueStatus", queue.getQueueStatus());
                 dto.put("isActive", queue.getIsActive());
                 dto.put("operatingDays", queue.getOperatingDays());
+                dto.put("doctorName", queue.getDoctorName());
                 
                 // Today's actual booked count from tokens table
                 long todayBooked = queueService.getTodayBookedCount(queue, today);

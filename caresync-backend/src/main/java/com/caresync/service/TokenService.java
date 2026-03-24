@@ -161,6 +161,12 @@ public class TokenService {
         return tokenRepository.findTokensNeedingAttention(hospital.getHospitalId(), date);
     }
     
+    @Transactional(readOnly = true)
+    public List<QueueToken> getHospitalTokensByStatus(User hospitalUser, LocalDate date, QueueToken.TokenStatus status) {
+        Hospital hospital = getHospitalByUser(hospitalUser);
+        return tokenRepository.findByHospitalIdAndTokenDateAndTokenStatusOrderByTokenNumberAsc(hospital.getHospitalId(), date, status);
+    }
+
     // Get all hospital tokens (Hospital)
     public List<QueueToken> getAllHospitalTokens(User hospitalUser) {
         Hospital hospital = getHospitalByUser(hospitalUser);
@@ -217,27 +223,38 @@ public class TokenService {
     // Get token statistics (Hospital)
     public TokenStatistics getTokenStatistics(User hospitalUser, LocalDate date) {
         Hospital hospital = getHospitalByUser(hospitalUser);
-        Object[] stats = tokenRepository.getHospitalTokenStatistics(hospital.getHospitalId(), date);
+        Object result = tokenRepository.getHospitalTokenStatistics(hospital.getHospitalId(), date);
         
-        if (stats != null && stats.length > 0) {
-            // Check if it's a nested array
-            if (stats[0] != null && stats[0].getClass().isArray()) {
-                Object[] innerStats = (Object[]) stats[0];
-                
-                long totalTokens = innerStats[0] != null ? ((Number) innerStats[0]).longValue() : 0L;
-                long waitingTokens = innerStats[1] != null ? ((Number) innerStats[1]).longValue() : 0L;
-                long inProgressTokens = innerStats[2] != null ? ((Number) innerStats[2]).longValue() : 0L;
-                long completedTokens = innerStats[3] != null ? ((Number) innerStats[3]).longValue() : 0L;
-                
-                return new TokenStatistics(totalTokens, waitingTokens, inProgressTokens, completedTokens);
-            } else if (stats.length >= 4) {
-                // Direct array access
-                long totalTokens = stats[0] != null ? ((Number) stats[0]).longValue() : 0L;
-                long waitingTokens = stats[1] != null ? ((Number) stats[1]).longValue() : 0L;
-                long inProgressTokens = stats[2] != null ? ((Number) stats[2]).longValue() : 0L;
-                long completedTokens = stats[3] != null ? ((Number) stats[3]).longValue() : 0L;
-                
-                return new TokenStatistics(totalTokens, waitingTokens, inProgressTokens, completedTokens);
+        if (result != null) {
+            Object[] stats;
+            if (result instanceof List) {
+                List<?> list = (List<?>) result;
+                if (list.isEmpty()) return new TokenStatistics(0, 0, 0, 0);
+                stats = (Object[]) list.get(0);
+            } else {
+                stats = (Object[]) result;
+            }
+            
+            if (stats != null && stats.length > 0) {
+                // Check if it's a nested array
+                if (stats[0] != null && stats[0].getClass().isArray()) {
+                    Object[] innerStats = (Object[]) stats[0];
+                    
+                    long totalTokens = innerStats[0] != null ? ((Number) innerStats[0]).longValue() : 0L;
+                    long waitingTokens = innerStats[1] != null ? ((Number) innerStats[1]).longValue() : 0L;
+                    long inProgressTokens = innerStats[2] != null ? ((Number) innerStats[2]).longValue() : 0L;
+                    long completedTokens = innerStats[3] != null ? ((Number) innerStats[3]).longValue() : 0L;
+                    
+                    return new TokenStatistics(totalTokens, waitingTokens, inProgressTokens, completedTokens);
+                } else if (stats.length >= 4) {
+                    // Direct array access
+                    long totalTokens = stats[0] != null ? ((Number) stats[0]).longValue() : 0L;
+                    long waitingTokens = stats[1] != null ? ((Number) stats[1]).longValue() : 0L;
+                    long inProgressTokens = stats[2] != null ? ((Number) stats[2]).longValue() : 0L;
+                    long completedTokens = stats[3] != null ? ((Number) stats[3]).longValue() : 0L;
+                    
+                    return new TokenStatistics(totalTokens, waitingTokens, inProgressTokens, completedTokens);
+                }
             }
         }
         
@@ -313,8 +330,8 @@ public class TokenService {
     }
     
     private Hospital getHospitalByUser(User user) {
-        return hospitalRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Hospital profile not found for user"));
+        return hospitalRepository.findByUser_UserId(user.getUserId())
+                .orElseThrow(() -> new RuntimeException("Hospital profile not found for user ID: " + user.getUserId() + " (" + user.getEmail() + ")"));
     }
     
     // DTO for statistics

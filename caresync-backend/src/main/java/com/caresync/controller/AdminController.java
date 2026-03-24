@@ -416,6 +416,7 @@ public class AdminController {
                 dto.put("queueStatus", queue.getQueueStatus());
                 dto.put("isActive", queue.getIsActive());
                 dto.put("operatingDays", queue.getOperatingDays());
+                dto.put("doctorName", queue.getDoctorName());
                 return dto;
             }).collect(java.util.stream.Collectors.toList());
             

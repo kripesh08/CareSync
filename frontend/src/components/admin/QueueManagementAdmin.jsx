@@ -273,6 +273,7 @@ const QueueManagementAdmin = () => {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <h4 className="font-bold text-white text-sm">{queue.queueName}</h4>
+                        <p className="text-[10px] text-emerald-400 font-medium">Dr. {queue.doctorName || 'Not Assigned'}</p>
                         <p className="text-xs text-gray-400 mt-1">{queue.description || 'No description'}</p>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
@@ -305,7 +306,10 @@ const QueueManagementAdmin = () => {
                         <div className="pt-2 border-t border-gray-700/30">
                           <span className="text-gray-400 text-[10px]">Operating Days:</span>
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {queue.operatingDays.split(',').map(day => (
+                            {queue.operatingDays.split(',').sort((a, b) => {
+                              const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+                              return days.indexOf(a) - days.indexOf(b);
+                            }).map(day => (
                               <span key={day} className="px-1.5 py-0.5 bg-gray-700/50 rounded text-[9px] text-gray-300">
                                 {day.substring(0, 3)}
                               </span>

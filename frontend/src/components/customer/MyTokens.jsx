@@ -64,7 +64,7 @@ const MyTokens = () => {
   };
 
   const fetchQueueStatuses = async (latestTokens) => {
-    const token = localStorage.getItem('token');
+    const authToken = localStorage.getItem('token');
     const statuses = {};
     const list = latestTokens || tokens;
 
@@ -72,19 +72,22 @@ const MyTokens = () => {
       if (['WAITING', 'IN_PROGRESS'].includes(queueToken.tokenStatus)) {
         try {
           const response = await fetch(`http://localhost:8081/api/queue-tokens/${queueToken.tokenId}/queue-status`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${authToken}` }
           });
 
           if (response.ok) {
             const data = await response.json();
             statuses[queueToken.tokenId] = data;
+          } else {
+            const err = await response.text();
+            console.error(`Queue status ${queueToken.tokenId} failed:`, response.status, err);
           }
         } catch (error) {
           console.error(`Error fetching status for token ${queueToken.tokenId}:`, error);
         }
       }
     }
-    
+
     setQueueStatuses(statuses);
   };
 
@@ -310,7 +313,7 @@ const MyTokens = () => {
                         <Calendar className="h-4 w-4" />
                         {new Date(token.tokenDate).toLocaleDateString()}
                       </div>
-                      {/* Show live estimate if available, else fall back to static */}
+                      {/* Show live estimate if available */}
                       {(() => {
                         const qs = queueStatuses[token.tokenId];
                         if (token.tokenStatus === 'IN_PROGRESS') {
@@ -318,7 +321,6 @@ const MyTokens = () => {
                         }
                         if (token.tokenStatus === 'WAITING') {
                           if (qs) {
-                            // Live data available
                             if (qs.tokensAhead === 0) {
                               return <div className="text-yellow-400 text-xs mt-1 font-medium">Your turn soon</div>;
                             }
@@ -326,11 +328,11 @@ const MyTokens = () => {
                             if (live?.time) {
                               return <div className="text-blue-400 text-xs mt-1">Est: ~{live.time}</div>;
                             }
+                            // qs loaded but no avgTimePerPatient configured
+                            return <div className="text-gray-400 text-xs mt-1">{qs.tokensAhead} ahead</div>;
                           }
-                          // fallback to static while live data loads
-                          if (token.estimatedTime) {
-                            return <div className="text-gray-400 text-xs mt-1">Est: {new Date(token.estimatedTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>;
-                          }
+                          // Still loading
+                          return <div className="text-gray-400 text-xs mt-1">Loading...</div>;
                         }
                         return null;
                       })()}

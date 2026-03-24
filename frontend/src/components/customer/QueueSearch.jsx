@@ -294,6 +294,7 @@ const QueueSearch = () => {
                     }`}>
                       <div className="mb-3">
                         <h5 className="font-bold text-white">{queue.queueName}</h5>
+                        <p className="text-sm text-blue-400 font-medium">Dr. {queue.doctorName || 'Not Assigned'}</p>
                         <p className="text-xs text-gray-400 mt-1">{queue.description || 'General consultation'}</p>
                       </div>
 
@@ -361,6 +362,10 @@ const QueueSearch = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-400">Queue:</span>
                     <span className="text-white font-medium">{selectedQueue.queueName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Doctor:</span>
+                    <span className="text-white font-medium">Dr. {selectedQueue.doctorName || 'Not Assigned'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Token Fee:</span>

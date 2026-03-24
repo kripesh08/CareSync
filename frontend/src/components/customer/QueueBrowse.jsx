@@ -235,6 +235,7 @@ const QueueBrowse = () => {
                   }`}>
                     <div className="mb-3">
                       <h4 className="font-bold text-white">{queue.queueName}</h4>
+                      <p className="text-sm text-blue-400 font-medium">Dr. {queue.doctorName || 'Not Assigned'}</p>
                       <p className="text-xs text-gray-400 mt-1">{queue.description || 'General consultation'}</p>
                       {!operatesOnDay && (
                         <p className="text-xs text-red-400 mt-1 font-medium">
@@ -302,6 +303,10 @@ const QueueBrowse = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-400">Queue:</span>
                     <span className="text-white font-medium">{selectedQueue.queueName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Doctor:</span>
+                    <span className="text-white font-medium">Dr. {selectedQueue.doctorName || 'Not Assigned'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Date:</span>

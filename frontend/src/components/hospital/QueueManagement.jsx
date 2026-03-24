@@ -24,7 +24,8 @@ const QueueManagement = () => {
     endTime: '',
     estimatedTimePerPatient: '',
     description: '',
-    operatingDays: []
+    operatingDays: [],
+    doctorName: ''
   });
 
   useEffect(() => {
@@ -103,7 +104,10 @@ const QueueManagement = () => {
           ...queueForm,
           maxCapacity: parseInt(queueForm.maxCapacity),
           estimatedTimePerPatient: queueForm.estimatedTimePerPatient ? parseInt(queueForm.estimatedTimePerPatient) : null,
-          operatingDays: queueForm.operatingDays.join(',')
+          operatingDays: [...queueForm.operatingDays].sort((a, b) => {
+            const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+            return days.indexOf(a) - days.indexOf(b);
+          }).join(',')
         })
       });
 
@@ -154,7 +158,8 @@ const QueueManagement = () => {
       endTime: queue.endTime || '',
       estimatedTimePerPatient: queue.estimatedTimePerPatient?.toString() || '',
       description: queue.description || '',
-      operatingDays: queue.operatingDays ? queue.operatingDays.split(',') : []
+      operatingDays: queue.operatingDays ? queue.operatingDays.split(',') : [],
+      doctorName: queue.doctorName || ''
     });
     setShowModal(true);
   };
@@ -169,7 +174,8 @@ const QueueManagement = () => {
       endTime: '',
       estimatedTimePerPatient: '',
       description: '',
-      operatingDays: []
+      operatingDays: [],
+      doctorName: ''
     });
   };
 
@@ -332,6 +338,7 @@ const QueueManagement = () => {
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h4 className="font-bold text-white">{queue.queueName}</h4>
+                      <p className="text-sm text-emerald-400 font-medium">Dr. {queue.doctorName || 'Not Assigned'}</p>
                       <p className="text-xs text-gray-400 mt-1">Queue ID: {queue.queueId}</p>
                     </div>
                     <div className="flex gap-2">
@@ -388,11 +395,16 @@ const QueueManagement = () => {
                       </div>
                     )}
                     <div style={{ borderTop: '1px solid rgba(55, 65, 81, 0.5)', marginTop: '0.75rem', paddingTop: '0.75rem' }}>
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${queue.queueStatus === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                        queue.queueStatus === 'FULL' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                          'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+                        !queue.isActive
+                          ? 'bg-gray-500/10 text-gray-400 border border-gray-500/20'
+                          : queue.queueStatus === 'ACTIVE'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          : queue.queueStatus === 'FULL'
+                          ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                          : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
                         }`}>
-                        {queue.queueStatus}
+                        {queue.isActive ? queue.queueStatus : 'INACTIVE'}
                       </span>
                     </div>
                   </div>
@@ -437,6 +449,17 @@ const QueueManagement = () => {
                       onChange={(e) => setQueueForm({ ...queueForm, queueName: e.target.value })}
                       className="input-saas w-full"
                       placeholder="e.g., General Consultation"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-400 mb-2">Doctor Name</label>
+                    <input
+                      type="text"
+                      value={queueForm.doctorName}
+                      onChange={(e) => setQueueForm({ ...queueForm, doctorName: e.target.value })}
+                      className="input-saas w-full"
+                      placeholder="e.g., Dr. Smith"
                     />
                   </div>
 

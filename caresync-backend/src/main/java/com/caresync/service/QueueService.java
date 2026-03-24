@@ -61,23 +61,29 @@ public class QueueService {
         queue.setEstimatedTimePerPatient(queueData.getEstimatedTimePerPatient());
         queue.setDescription(queueData.getDescription());
         queue.setOperatingDays(queueData.getOperatingDays());
+        queue.setDoctorName(queueData.getDoctorName());
         
         return queueRepository.save(queue);
     }
     
-    // Delete queue (Hospital)
+    // Delete queue (Hospital) - Hard delete
     public void deleteQueue(User hospitalUser, Long queueId) {
         Hospital hospital = getHospitalByUser(hospitalUser);
         Queue queue = queueRepository.findByHospitalAndQueueId(hospital, queueId)
                 .orElseThrow(() -> new RuntimeException("Queue not found"));
-        queue.setIsActive(false);
-        queueRepository.save(queue);
+        
+        // Delete associated records first (mandatory for hard delete)
+        queueTokenRepository.deleteByQueue(queue);
+        queueClosureRepository.deleteByQueue(queue);
+        
+        // Then delete the queue permanently
+        queueRepository.delete(queue);
     }
     
     // Get all queues for hospital
     public List<Queue> getHospitalQueues(User hospitalUser) {
         Hospital hospital = getHospitalByUser(hospitalUser);
-        return queueRepository.findByHospitalAndIsActiveTrueOrderByDepartmentNameAsc(hospital);
+        return queueRepository.findByHospitalOrderByDepartmentNameAsc(hospital);
     }
     
     // Get departments for hospital
@@ -120,6 +126,7 @@ public class QueueService {
             queueData.put("description", queue.getDescription());
             queueData.put("queueStatus", queue.getQueueStatus());
             queueData.put("operatingDays", queue.getOperatingDays());
+            queueData.put("doctorName", queue.getDoctorName());
             queueData.put("hospital", queue.getHospital());
             
             // Get booked count for the specific date
@@ -160,6 +167,7 @@ public class QueueService {
             queueData.put("description", queue.getDescription());
             queueData.put("queueStatus", queue.getQueueStatus());
             queueData.put("operatingDays", queue.getOperatingDays());
+            queueData.put("doctorName", queue.getDoctorName());
             queueData.put("hospital", queue.getHospital());
             
             // Get booked count for the specific date
@@ -183,12 +191,47 @@ public class QueueService {
         stats.put("activeQueues", activeQueues);
         
         // Today's token statistics
-        Object[] tokenStats = queueTokenRepository.getHospitalTokenStatistics(hospital.getHospitalId(), today);
-        if (tokenStats != null && tokenStats.length > 0) {
-            stats.put("todayTokens", tokenStats[0] != null ? ((Number) tokenStats[0]).longValue() : 0L);
-            stats.put("waitingTokens", tokenStats[1] != null ? ((Number) tokenStats[1]).longValue() : 0L);
-            stats.put("inProgressTokens", tokenStats[2] != null ? ((Number) tokenStats[2]).longValue() : 0L);
-            stats.put("completedTokens", tokenStats[3] != null ? ((Number) tokenStats[3]).longValue() : 0L);
+        Object result = queueTokenRepository.getHospitalTokenStatistics(hospital.getHospitalId(), today);
+        if (result != null) {
+            Object[] tokenStats;
+            if (result instanceof List) {
+                List<?> list = (List<?>) result;
+                if (list.isEmpty()) {
+                    tokenStats = new Object[0];
+                } else {
+                    Object first = list.get(0);
+                    if (first instanceof Object[]) {
+                        tokenStats = (Object[]) first;
+                    } else {
+                        tokenStats = new Object[]{first};
+                    }
+                }
+            } else if (result instanceof Object[]) {
+                tokenStats = (Object[]) result;
+            } else {
+                tokenStats = new Object[]{result};
+            }
+
+            if (tokenStats.length > 0) {
+                // Check if the first element is ITSELF an array (defensive check for nested results)
+                if (tokenStats[0] != null && tokenStats[0].getClass().isArray()) {
+                    Object[] innerStats = (Object[]) tokenStats[0];
+                    stats.put("todayTokens", innerStats.length > 0 && innerStats[0] != null ? ((Number) innerStats[0]).longValue() : 0L);
+                    stats.put("waitingTokens", innerStats.length > 1 && innerStats[1] != null ? ((Number) innerStats[1]).longValue() : 0L);
+                    stats.put("inProgressTokens", innerStats.length > 2 && innerStats[2] != null ? ((Number) innerStats[2]).longValue() : 0L);
+                    stats.put("completedTokens", innerStats.length > 3 && innerStats[3] != null ? ((Number) innerStats[3]).longValue() : 0L);
+                } else {
+                    stats.put("todayTokens", tokenStats.length > 0 && tokenStats[0] != null ? ((Number) tokenStats[0]).longValue() : 0L);
+                    stats.put("waitingTokens", tokenStats.length > 1 && tokenStats[1] != null ? ((Number) tokenStats[1]).longValue() : 0L);
+                    stats.put("inProgressTokens", tokenStats.length > 2 && tokenStats[2] != null ? ((Number) tokenStats[2]).longValue() : 0L);
+                    stats.put("completedTokens", tokenStats.length > 3 && tokenStats[3] != null ? ((Number) tokenStats[3]).longValue() : 0L);
+                }
+            } else {
+                stats.put("todayTokens", 0L);
+                stats.put("waitingTokens", 0L);
+                stats.put("inProgressTokens", 0L);
+                stats.put("completedTokens", 0L);
+            }
         } else {
             stats.put("todayTokens", 0L);
             stats.put("waitingTokens", 0L);
@@ -205,8 +248,8 @@ public class QueueService {
     
     // Helper method
     private Hospital getHospitalByUser(User user) {
-        return hospitalRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Hospital profile not found for user"));
+        return hospitalRepository.findByUser_UserId(user.getUserId())
+                .orElseThrow(() -> new RuntimeException("Hospital profile not found for user ID: " + user.getUserId() + " (" + user.getEmail() + ")"));
     }
     
     // Get today's booked count for a queue
@@ -274,5 +317,27 @@ public class QueueService {
         }
         
         return queueRepository.save(queue);
+    }
+
+    // Temporary method to cleanup inactive queues from database
+    @jakarta.annotation.PostConstruct
+    public void cleanupExistingInactiveQueues() {
+        try {
+            List<Queue> inactiveQueues = queueRepository.findAll().stream()
+                    .filter(q -> !q.getIsActive())
+                    .toList();
+            
+            if (!inactiveQueues.isEmpty()) {
+                System.out.println("Cleaning up " + inactiveQueues.size() + " inactive queues...");
+                for (Queue queue : inactiveQueues) {
+                    queueTokenRepository.deleteByQueue(queue);
+                    queueClosureRepository.deleteByQueue(queue);
+                    queueRepository.delete(queue);
+                    System.out.println("Hard deleted queue ID: " + queue.getQueueId());
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error during inactive queue cleanup: " + e.getMessage());
+        }
     }
 }

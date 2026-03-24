@@ -23,4 +23,7 @@ public interface QueueClosureRepository extends JpaRepository<QueueClosure, Long
     
     // Check if queue is closed on a specific date
     boolean existsByQueueAndClosureDate(Queue queue, LocalDate closureDate);
+
+    // Delete all closures for a queue
+    void deleteByQueue(Queue queue);
 }

@@ -140,7 +140,7 @@ const OrderManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-white font-medium">
                       #{order.orderId}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                    <td className="px-6 py-4 text-sm text-gray-300">
                       {order.customer?.fullName || 'N/A'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-300">

@@ -23,9 +23,7 @@ public class WaitingTimePredictionService {
     @Autowired
     private QueueRepository queueRepository;
     
-    /**
-     * Predict waiting time for a token based on historical data
-     */
+    
     public PredictionResult predictWaitingTime(Long queueId, LocalDate tokenDate, Integer tokenNumber) {
         Queue queue = queueRepository.findById(queueId)
                 .orElseThrow(() -> new RuntimeException("Queue not found"));

@@ -28,7 +28,8 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
     List<QueueToken> findByQueueAndTokenDateAndTokenStatus(Queue queue, LocalDate tokenDate, QueueToken.TokenStatus status);
     
     // Count tokens ahead in queue
-    long countByQueueAndTokenDateAndTokenStatusAndTokenNumberLessThan(Queue queue, LocalDate tokenDate, QueueToken.TokenStatus status, Integer tokenNumber);
+    @Query("SELECT COUNT(qt) FROM QueueToken qt WHERE qt.queue = :queue AND qt.tokenDate = :tokenDate AND qt.tokenStatus = :status AND CAST(qt.tokenNumber as integer) < :tokenNumber")
+    long countByQueueAndTokenDateAndTokenStatusAndTokenNumberLessThan(@Param("queue") Queue queue, @Param("tokenDate") LocalDate tokenDate, @Param("status") QueueToken.TokenStatus status, @Param("tokenNumber") Integer tokenNumber);
     
     // Find patient's token for specific queue and date
     Optional<QueueToken> findByQueueAndPatientAndTokenDate(Queue queue, User patient, LocalDate tokenDate);
@@ -50,6 +51,9 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
     @Query("SELECT qt FROM QueueToken qt WHERE qt.queue.hospital.hospitalId = :hospitalId ORDER BY qt.createdAt DESC")
     List<QueueToken> findByHospitalId(@Param("hospitalId") Long hospitalId);
     
+    @Query("SELECT qt FROM QueueToken qt WHERE qt.queue.hospital.hospitalId = :hospitalId AND qt.tokenDate = :date AND qt.tokenStatus = :status ORDER BY qt.tokenNumber ASC")
+    List<QueueToken> findByHospitalIdAndTokenDateAndTokenStatusOrderByTokenNumberAsc(@Param("hospitalId") Long hospitalId, @Param("date") LocalDate date, @Param("status") QueueToken.TokenStatus status);
+
     // Find tokens needing attention (waiting or in progress)
     @Query("SELECT qt FROM QueueToken qt WHERE qt.queue.hospital.hospitalId = :hospitalId AND qt.tokenDate = :date AND qt.tokenStatus IN ('WAITING', 'IN_PROGRESS') ORDER BY qt.tokenNumber ASC")
     List<QueueToken> findTokensNeedingAttention(@Param("hospitalId") Long hospitalId, @Param("date") LocalDate date);
@@ -68,4 +72,7 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
     
     // Count tokens by date and status
     long countByTokenDateAndTokenStatus(LocalDate tokenDate, QueueToken.TokenStatus status);
+
+    // Delete all tokens for a queue
+    void deleteByQueue(Queue queue);
 }

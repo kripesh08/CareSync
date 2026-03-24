@@ -137,6 +137,20 @@ public class TokenController {
         }
     }
     
+    // Get completed tokens for a date (Hospital)
+    @GetMapping("/hospital/completed")
+    @PreAuthorize("hasRole('HOSPITAL')")
+    public ResponseEntity<?> getCompletedTokens(@RequestParam(required = false) String date, HttpServletRequest request) {
+        try {
+            User hospitalUser = getCurrentUser(request);
+            LocalDate queryDate = date != null ? LocalDate.parse(date) : LocalDate.now();
+            List<QueueToken> tokens = tokenService.getHospitalTokensByStatus(hospitalUser, queryDate, QueueToken.TokenStatus.COMPLETED);
+            return ResponseEntity.ok(tokens);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+        }
+    }
+
     // Get all hospital tokens (Hospital)
     @GetMapping("/hospital/all")
     @PreAuthorize("hasRole('HOSPITAL')")

@@ -64,6 +64,9 @@ public class Queue {
     @Column(name = "operating_days")
     private String operatingDays;
 
+    @Column(name = "doctor_name")
+    private String doctorName;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -73,7 +76,7 @@ public class Queue {
 
     public Queue(Hospital hospital, String departmentName, String queueName, 
                 Integer maxCapacity, LocalTime startTime, LocalTime endTime, 
-                Integer estimatedTimePerPatient) {
+                Integer estimatedTimePerPatient, String doctorName) {
         this.hospital = hospital;
         this.departmentName = departmentName;
         this.queueName = queueName;
@@ -81,6 +84,7 @@ public class Queue {
         this.startTime = startTime;
         this.endTime = endTime;
         this.estimatedTimePerPatient = estimatedTimePerPatient;
+        this.doctorName = doctorName;
     }
 
     // Getters and Setters
@@ -122,6 +126,9 @@ public class Queue {
     
     public String getOperatingDays() { return operatingDays; }
     public void setOperatingDays(String operatingDays) { this.operatingDays = operatingDays; }
+
+    public String getDoctorName() { return doctorName; }
+    public void setDoctorName(String doctorName) { this.doctorName = doctorName; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

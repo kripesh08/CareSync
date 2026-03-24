@@ -54,13 +54,13 @@ public class HospitalService {
     @Transactional(readOnly = true)
     public Hospital getHospitalByUserId(Long userId) {
         return hospitalRepository.findByUser_UserId(userId)
-                .orElseThrow(() -> new RuntimeException("Hospital not found for user"));
+                .orElseThrow(() -> new RuntimeException("Hospital profile not found for user ID: " + userId));
     }
     
     @Transactional(readOnly = true)
     public HospitalController.HospitalProfileResponse getHospitalProfileWithPhone(Long userId) {
         Hospital hospital = hospitalRepository.findByUser_UserId(userId)
-                .orElseThrow(() -> new RuntimeException("Hospital not found for user"));
+                .orElseThrow(() -> new RuntimeException("Hospital profile not found for user ID: " + userId));
         
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));

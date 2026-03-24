@@ -182,7 +182,7 @@ const Layout = () => {
       </div>
 
       {/* Static sidebar for desktop */}
-      <div className="hidden md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 z-30 shadow-2xl">
+      <div className="hidden md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 z-30 shadow-2xl flex-shrink-0 min-w-[18rem]">
         <SidebarContent />
       </div>
 
