@@ -31,9 +31,6 @@ const MedicineManagement = () => {
   const fetchMedicines = async () => {
     try {
       const token = localStorage.getItem('token');
-      console.log('Fetching medicines from admin endpoint...');
-      console.log('Token:', token ? 'Present' : 'Missing');
-
       const response = await fetch('http://localhost:8081/api/admin/all-medicines', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -41,22 +38,13 @@ const MedicineManagement = () => {
         }
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-
       if (response.ok) {
         const data = await response.json();
-        console.log('Medicines data:', data);
-        console.log('Number of medicines:', data.length);
         setMedicines(data);
       } else {
-        const errorText = await response.text();
-        console.error('Response not OK:', response.status, response.statusText);
-        console.error('Error body:', errorText);
         alert(`Failed to fetch medicines: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Error fetching medicines:', error);
       alert(`Error fetching medicines: ${error.message}`);
     } finally {
       setLoading(false);
@@ -66,8 +54,6 @@ const MedicineManagement = () => {
   const handleDeleteMedicine = async (medicineId) => {
     try {
       const token = localStorage.getItem('token');
-      console.log('Deleting medicine:', medicineId);
-
       const response = await fetch(`http://localhost:8081/api/admin/medicines/${medicineId}`, {
         method: 'DELETE',
         headers: {
@@ -76,19 +62,13 @@ const MedicineManagement = () => {
         }
       });
 
-      console.log('Delete response:', response.status);
-
       if (response.ok) {
-        console.log('Medicine deleted successfully');
         fetchMedicines();
         setDeleteConfirm(null);
       } else {
-        const errorText = await response.text();
-        console.error('Failed to delete medicine:', response.status, errorText);
         alert(`Failed to delete medicine: ${response.status}`);
       }
     } catch (error) {
-      console.error('Error deleting medicine:', error);
       alert('Error deleting medicine: ' + error.message);
     }
   };
@@ -190,7 +170,7 @@ const MedicineManagement = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      {medicine.prescriptionRequired ? (
+                      {medicine.requiresPrescription ? (
                         <>
                           <Shield className="h-4 w-4 text-red-400 mr-2" />
                           <span className="text-sm text-red-400">Required</span>

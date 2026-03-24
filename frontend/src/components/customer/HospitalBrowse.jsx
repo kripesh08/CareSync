@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, MapPin, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Building2, MapPin, ArrowRight, ShieldCheck, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
@@ -94,6 +94,12 @@ const HospitalBrowse = () => {
                   <MapPin className="h-4 w-4 shrink-0" />
                   {hospital.address}, {hospital.city}
                 </div>
+                {hospital.phone && (
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <Phone className="h-4 w-4 shrink-0" />
+                    {hospital.phone}
+                  </div>
+                )}
                 {hospital.registrationNumber && (
                   <div className="text-gray-500 text-xs">
                     Reg: {hospital.registrationNumber}

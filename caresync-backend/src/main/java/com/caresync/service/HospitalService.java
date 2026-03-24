@@ -27,8 +27,23 @@ public class HospitalService {
     }
     
     @Transactional(readOnly = true)
-    public List<Hospital> getApprovedHospitals() {
-        return hospitalRepository.findByApprovalStatus(Hospital.ApprovalStatus.APPROVED);
+    public List<HospitalController.HospitalProfileResponse> getApprovedHospitals() {
+        return hospitalRepository.findByApprovalStatus(Hospital.ApprovalStatus.APPROVED)
+            .stream().map(hospital -> {
+                HospitalController.HospitalProfileResponse r = new HospitalController.HospitalProfileResponse();
+                r.setHospitalId(hospital.getHospitalId());
+                r.setHospitalName(hospital.getHospitalName());
+                r.setRegistrationNumber(hospital.getRegistrationNumber());
+                r.setAddress(hospital.getAddress());
+                r.setCity(hospital.getCity());
+                r.setSupportedInsuranceProviders(hospital.getSupportedInsuranceProviders());
+                r.setApprovalStatus(hospital.getApprovalStatus());
+                r.setCreatedAt(hospital.getCreatedAt());
+                if (hospital.getUser() != null) {
+                    r.setPhone(hospital.getUser().getPhone());
+                }
+                return r;
+            }).collect(java.util.stream.Collectors.toList());
     }
     
     @Transactional(readOnly = true)

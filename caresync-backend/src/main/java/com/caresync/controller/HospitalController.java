@@ -45,8 +45,7 @@ public class HospitalController {
     @GetMapping("/approved")
     public ResponseEntity<?> getApprovedHospitals() {
         try {
-            List<Hospital> hospitals = hospitalService.getApprovedHospitals();
-            return ResponseEntity.ok(hospitals);
+            return ResponseEntity.ok(hospitalService.getApprovedHospitals());
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         }

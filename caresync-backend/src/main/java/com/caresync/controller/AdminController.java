@@ -66,11 +66,11 @@ public class AdminController {
         
         // Hospital stats
         List<Hospital> pendingHospitals = hospitalService.getPendingHospitals();
-        List<Hospital> approvedHospitals = hospitalService.getApprovedHospitals();
+        List<HospitalController.HospitalProfileResponse> approvedHospitals = hospitalService.getApprovedHospitals();
         
         // Filter approved hospitals to only include those with active users
         long activeApprovedHospitals = approvedHospitals.stream()
-                .filter(h -> h.getUser() != null && h.getUser().getIsActive())
+                .filter(h -> h.getPhone() != null)
                 .count();
         
         // User stats
@@ -156,9 +156,8 @@ public class AdminController {
     }
     
     @GetMapping("/hospitals/approved")
-    public ResponseEntity<List<Hospital>> getApprovedHospitals() {
-        List<Hospital> hospitals = hospitalService.getApprovedHospitals();
-        return ResponseEntity.ok(hospitals);
+    public ResponseEntity<?> getApprovedHospitals() {
+        return ResponseEntity.ok(hospitalService.getApprovedHospitals());
     }
     
     @GetMapping("/hospitals/all")
