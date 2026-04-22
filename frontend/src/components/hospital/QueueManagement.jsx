@@ -339,7 +339,6 @@ const QueueManagement = () => {
                     <div>
                       <h4 className="font-bold text-white">{queue.queueName}</h4>
                       <p className="text-sm text-emerald-400 font-medium">Dr. {queue.doctorName || 'Not Assigned'}</p>
-                      <p className="text-xs text-gray-400 mt-1">Queue ID: {queue.queueId}</p>
                     </div>
                     <div className="flex gap-2">
                       <button

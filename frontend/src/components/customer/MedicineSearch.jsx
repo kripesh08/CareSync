@@ -91,6 +91,17 @@ const MedicineSearch = () => {
   const handleOrderSubmit = async (e) => {
     e.preventDefault();
     
+    const quantity = parseInt(orderForm.quantity);
+    if (isNaN(quantity) || quantity < 1) {
+      toast.error('Quantity must be at least 1');
+      return;
+    }
+    
+    if (quantity > selectedMedicine.stockQuantity) {
+      toast.error(`Cannot order more than available stock (${selectedMedicine.stockQuantity})`);
+      return;
+    }
+
     if (!orderForm.deliveryAddress.trim()) {
       toast.error('Please provide delivery address');
       return;
@@ -142,7 +153,7 @@ const MedicineSearch = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="w-full min-h-screen py-8 animate-fade-in">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Search Medicines</h1>
         <p className="text-gray-600 mt-2">Find and order medicines from verified pharmacies</p>
@@ -253,86 +264,107 @@ const MedicineSearch = () => {
 
       {/* Order Modal */}
       {showOrderModal && selectedMedicine && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Order Medicine: {selectedMedicine.medicineName}
-              </h3>
-              
-              <div className="bg-gray-50 p-4 rounded-md mb-4">
+        <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-start justify-center p-4 py-12 animate-fade-in">
+          <div className="relative modal-glass-saas w-full max-w-md overflow-y-auto max-h-[90vh] animate-slide-in-right">
+            <div className="px-6 py-4 border-b border-gray-700/50 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white tracking-tight">Order Medicine</h3>
+              <button
+                onClick={() => {
+                  setShowOrderModal(false);
+                  setSelectedMedicine(null);
+                  setOrderForm({
+                    quantity: 1,
+                    customerNotes: '',
+                    deliveryAddress: '',
+                    deliveryPhone: ''
+                  });
+                }}
+                className="w-8 h-8 flex items-center justify-center rounded-md bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 transition-all font-bold text-lg"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 pb-10">
+              <div className="bg-gray-800/40 p-4 rounded-xl border border-gray-700/30 mb-6">
+                <h4 className="text-lg font-bold text-white mb-2">{selectedMedicine.medicineName}</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p><strong>Price:</strong> ₹{selectedMedicine.price}</p>
-                    <p><strong>Available:</strong> {selectedMedicine.stockQuantity}</p>
+                    <span className="text-gray-400 block uppercase text-[10px] font-bold tracking-widest">Price</span>
+                    <span className="text-white font-bold text-base">₹{selectedMedicine.price}</span>
                   </div>
                   <div>
-                    <p><strong>Pharmacy:</strong> {selectedMedicine.pharmacy.pharmacyName}</p>
-                    <p><strong>Location:</strong> {selectedMedicine.pharmacy.city}</p>
+                    <span className="text-gray-400 block uppercase text-[10px] font-bold tracking-widest">Available</span>
+                    <span className="text-white font-bold text-base">{selectedMedicine.stockQuantity} Units</span>
                   </div>
                 </div>
+                <div className="mt-4 pt-4 border-t border-gray-700/30">
+                   <p className="text-sm text-gray-400"><span className="font-bold text-gray-300">Pharmacy:</span> {selectedMedicine.pharmacy.pharmacyName}</p>
+                   <p className="text-sm text-gray-400"><span className="font-bold text-gray-300">Location:</span> {selectedMedicine.pharmacy.city}</p>
+                </div>
                 {selectedMedicine.requiresPrescription && (
-                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                    <p className="text-sm text-red-800">
-                      <AlertCircle className="h-4 w-4 inline mr-1" />
-                      This medicine requires a prescription. You'll need to upload your prescription after placing the order.
+                  <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-400 mt-0.5" />
+                    <p className="text-xs text-red-400 leading-relaxed font-medium">
+                      Prescription required. Please upload your prescription in the dashboard after placing the order.
                     </p>
                   </div>
                 )}
               </div>
 
-              <form onSubmit={handleOrderSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Quantity *</label>
+              <form onSubmit={handleOrderSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Quantity *</label>
                   <input
                     type="number"
                     min="1"
                     max={selectedMedicine.stockQuantity}
                     required
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="input-saas"
                     value={orderForm.quantity}
                     onChange={(e) => setOrderForm({...orderForm, quantity: e.target.value})}
                   />
-                  <p className="mt-1 text-sm text-gray-500">
-                    Total: ₹{(selectedMedicine.price * orderForm.quantity).toFixed(2)}
-                  </p>
+                  <div className="flex justify-between items-center mt-1">
+                    <span className="text-xs text-gray-500">Order total</span>
+                    <span className="text-lg font-bold text-emerald-400">₹{(selectedMedicine.price * orderForm.quantity).toFixed(2)}</span>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Delivery Address *</label>
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Delivery Address *</label>
                   <textarea
                     rows={3}
                     required
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="input-saas resize-none"
                     placeholder="Enter your complete delivery address"
                     value={orderForm.deliveryAddress}
                     onChange={(e) => setOrderForm({...orderForm, deliveryAddress: e.target.value})}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Delivery Phone</label>
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Delivery Phone</label>
                   <input
                     type="tel"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="input-saas"
                     placeholder="Phone number for delivery contact"
                     value={orderForm.deliveryPhone}
                     onChange={(e) => setOrderForm({...orderForm, deliveryPhone: e.target.value})}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Notes (Optional)</label>
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Notes (Optional)</label>
                   <textarea
                     rows={2}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Any special instructions or notes"
+                    className="input-saas resize-none"
+                    placeholder="Any special instructions"
                     value={orderForm.customerNotes}
                     onChange={(e) => setOrderForm({...orderForm, customerNotes: e.target.value})}
                   />
                 </div>
 
-                <div className="flex justify-end space-x-3 pt-4">
+                <div className="flex justify-end gap-3 pt-8 pb-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -345,17 +377,16 @@ const MedicineSearch = () => {
                         deliveryPhone: ''
                       });
                     }}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="btn-saas-secondary"
                   >
                     Cancel
                   </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    Place Order - ₹{(selectedMedicine.price * orderForm.quantity).toFixed(2)}
+                  <button type="submit" className="btn-saas-primary">
+                    Place Order
                   </button>
                 </div>
+                {/* Space for visibility */}
+                <div className="h-10" />
               </form>
             </div>
           </div>

@@ -420,7 +420,7 @@ const PharmacyDashboard = ({ initialTab = 'overview' }) => {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-6 space-y-4 animate-fade-in">
+    <div className="animate-fade-in space-y-8 pb-12 min-h-screen">
 
 
         {/* Main Content Area */}
@@ -936,8 +936,8 @@ const PharmacyDashboard = ({ initialTab = 'overview' }) => {
       {/* Medicine Modal */}
       {
         showMedicineModal && (
-          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md overflow-y-auto h-full w-full z-[100] flex items-center justify-center p-4 animate-fade-in">
-            <div className="relative modal-glass-saas w-full max-w-2xl overflow-hidden animate-slide-in-right">
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md overflow-y-auto h-full w-full z-[100] flex items-start justify-center p-4 py-12 animate-fade-in">
+            <div className="relative modal-glass-saas w-full max-w-2xl overflow-y-auto max-h-[90vh] animate-slide-in-right">
               <div className="px-6 py-4 flex items-center justify-between border-b border-gray-800/50">
                 <h3 className="text-xl font-bold text-white tracking-tight">
                   {editingMedicine ? 'Update Medicine' : 'Add New Medicine'}
@@ -954,7 +954,7 @@ const PharmacyDashboard = ({ initialTab = 'overview' }) => {
                 </button>
               </div>
 
-              <div className="p-6 modal-content-scroll">
+              <div className="p-6 pb-10 modal-content-scroll">
                 <form onSubmit={handleMedicineSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -1084,7 +1084,7 @@ const PharmacyDashboard = ({ initialTab = 'overview' }) => {
                     </span>
                   </div>
 
-                  <div className="flex justify-end items-center gap-4 pt-6">
+                  <div className="flex justify-end items-center gap-4 pt-8 pb-12">
                     <button
                       type="button"
                       onClick={() => {
@@ -1103,6 +1103,8 @@ const PharmacyDashboard = ({ initialTab = 'overview' }) => {
                       {editingMedicine ? 'Update' : 'Add'}
                     </button>
                   </div>
+                  {/* Added spacer for better visibility */}
+                  <div className="h-12" />
                 </form>
               </div>
             </div>

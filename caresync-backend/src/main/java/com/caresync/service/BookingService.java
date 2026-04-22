@@ -55,6 +55,9 @@ public class BookingService {
                 .orElseThrow(() -> new RuntimeException("Medicine not found"));
         
         // Check stock availability
+        if (quantity == null || quantity < 1) {
+            throw new RuntimeException("Quantity must be at least 1");
+        }
         if (medicine.getStockQuantity() < quantity) {
             throw new RuntimeException("Insufficient stock. Available: " + medicine.getStockQuantity());
         }

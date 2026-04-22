@@ -27,9 +27,16 @@ public interface QueueTokenRepository extends JpaRepository<QueueToken, Long> {
     // Find tokens by queue, date and status (for single result)
     List<QueueToken> findByQueueAndTokenDateAndTokenStatus(Queue queue, LocalDate tokenDate, QueueToken.TokenStatus status);
     
-    // Count tokens ahead in queue
-    @Query("SELECT COUNT(qt) FROM QueueToken qt WHERE qt.queue = :queue AND qt.tokenDate = :tokenDate AND qt.tokenStatus = :status AND CAST(qt.tokenNumber as integer) < :tokenNumber")
-    long countByQueueAndTokenDateAndTokenStatusAndTokenNumberLessThan(@Param("queue") Queue queue, @Param("tokenDate") LocalDate tokenDate, @Param("status") QueueToken.TokenStatus status, @Param("tokenNumber") Integer tokenNumber);
+    // Count active tokens (WAITING/IN_PROGRESS) ahead of a token number
+    @Query("SELECT COUNT(qt) FROM QueueToken qt WHERE qt.queue = :queue AND qt.tokenDate = :tokenDate " +
+           "AND qt.tokenStatus IN ('WAITING', 'IN_PROGRESS') " +
+           "AND qt.tokenNumber IS NOT NULL AND CAST(qt.tokenNumber as integer) < :tokenNumber")
+    long countActiveAhead(@Param("queue") Queue queue, @Param("tokenDate") LocalDate tokenDate, @Param("tokenNumber") Integer tokenNumber);
+
+    // Count all active tokens (WAITING/IN_PROGRESS) for a queue/date
+    @Query("SELECT COUNT(qt) FROM QueueToken qt WHERE qt.queue = :queue AND qt.tokenDate = :tokenDate " +
+           "AND qt.tokenStatus IN ('WAITING', 'IN_PROGRESS')")
+    long countAllActive(@Param("queue") Queue queue, @Param("tokenDate") LocalDate tokenDate);
     
     // Find patient's token for specific queue and date
     Optional<QueueToken> findByQueueAndPatientAndTokenDate(Queue queue, User patient, LocalDate tokenDate);

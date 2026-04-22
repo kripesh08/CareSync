@@ -101,7 +101,7 @@ const Layout = () => {
           { name: 'Medicine Management', href: '/admin/medicines', icon: Pill },
           { name: 'Order Management', href: '/admin/orders', icon: Package },
           { name: 'Queue Management', href: '/admin/queue-management', icon: List },
-//          { name: 'Data Management', href: '/admin/data-management', icon: Database },
+          { name: 'Data Management', href: '/admin/data-management', icon: Database },
         ];
       case 'PATIENT':
         return [

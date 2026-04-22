@@ -53,6 +53,9 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Medicine not found or not available"));
         
         // Check stock availability
+        if (quantity == null || quantity < 1) {
+            throw new RuntimeException("Quantity must be at least 1");
+        }
         if (medicine.getStockQuantity() < quantity) {
             throw new RuntimeException("Insufficient stock. Available: " + medicine.getStockQuantity());
         }
@@ -221,8 +224,11 @@ public class OrderService {
         // Check if order can be cancelled
         if (order.getOrderStatus() == Order.OrderStatus.DELIVERED || 
             order.getOrderStatus() == Order.OrderStatus.OUT_FOR_DELIVERY ||
-            order.getOrderStatus() == Order.OrderStatus.CANCELLED) {
-            throw new RuntimeException("Order cannot be cancelled at this stage");
+            order.getOrderStatus() == Order.OrderStatus.CANCELLED ||
+            order.getOrderStatus() == Order.OrderStatus.REJECTED ||
+            order.getOrderStatus() == Order.OrderStatus.APPROVED ||
+            order.getPrescriptionStatus() == Order.PrescriptionStatus.VERIFIED) {
+            throw new RuntimeException("Order cannot be cancelled after pharmacy approval, rejection, or at this stage");
         }
         
         // If order was confirmed, restore stock

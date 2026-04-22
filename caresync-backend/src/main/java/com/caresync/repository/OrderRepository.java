@@ -34,7 +34,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByPharmacyAndOrderId(Pharmacy pharmacy, Long orderId);
     
     // Find orders requiring prescription verification
-    @Query("SELECT o FROM Order o WHERE o.pharmacy = :pharmacy AND o.prescriptionStatus = 'UPLOADED' ORDER BY o.createdAt ASC")
+    @Query("SELECT o FROM Order o WHERE o.pharmacy = :pharmacy AND o.prescriptionStatus = 'UPLOADED' AND o.orderStatus NOT IN ('CANCELLED', 'REJECTED') ORDER BY o.createdAt ASC")
     List<Order> findOrdersRequiringPrescriptionVerification(@Param("pharmacy") Pharmacy pharmacy);
     
     // Find orders with pending prescriptions
@@ -58,7 +58,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     long countByPharmacyAndOrderStatus(Pharmacy pharmacy, Order.OrderStatus status);
     
     // Count orders requiring prescription verification
-    @Query("SELECT COUNT(o) FROM Order o WHERE o.pharmacy = :pharmacy AND o.prescriptionStatus = 'UPLOADED'")
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.pharmacy = :pharmacy AND o.prescriptionStatus = 'UPLOADED' AND o.orderStatus NOT IN ('CANCELLED', 'REJECTED')")
     long countOrdersRequiringPrescriptionVerification(@Param("pharmacy") Pharmacy pharmacy);
     
     // Count total orders for pharmacy
@@ -84,6 +84,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o WHERE o.pharmacy = :pharmacy AND " +
            "(o.prescriptionStatus = 'UPLOADED' OR " +
            "(o.paymentStatus = 'SUCCESS' AND o.orderStatus != 'DELIVERED')) " +
+           "AND o.orderStatus NOT IN ('CANCELLED', 'REJECTED') " +
            "ORDER BY o.createdAt ASC")
     List<Order> findOrdersNeedingAttention(@Param("pharmacy") Pharmacy pharmacy);
 }

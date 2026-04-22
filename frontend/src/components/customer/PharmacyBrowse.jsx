@@ -82,6 +82,17 @@ const PharmacyBrowse = () => {
   const handleOrderSubmit = async (e) => {
     e.preventDefault();
     
+    const quantity = parseInt(orderForm.quantity);
+    if (isNaN(quantity) || quantity < 1) {
+      toast.error('Quantity must be at least 1');
+      return;
+    }
+    
+    if (quantity > selectedMedicine.stockQuantity) {
+      toast.error(`Cannot order more than available stock (${selectedMedicine.stockQuantity})`);
+      return;
+    }
+
     if (!orderForm.deliveryAddress.trim()) {
       toast.error('Please provide delivery address');
       return;
@@ -153,7 +164,7 @@ const PharmacyBrowse = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-6 space-y-6 animate-fade-in">
+    <div className="animate-fade-in space-y-8 pb-12 min-h-screen px-4 sm:px-6 lg:px-8">
       {!selectedPharmacy ? (
         <>
           {/* Pharmacy List View */}
@@ -379,8 +390,8 @@ const PharmacyBrowse = () => {
 
       {/* Order Modal */}
       {showOrderModal && selectedMedicine && (
-        <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="relative modal-glass-saas w-full max-w-md overflow-hidden animate-slide-in-right">
+        <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-start justify-center p-4 py-12 animate-fade-in">
+          <div className="relative modal-glass-saas w-full max-w-md overflow-y-auto max-h-[90vh] animate-slide-in-right">
             <div className="px-6 py-4 border-b border-gray-700/50 flex items-center justify-between">
               <h3 className="text-lg font-bold text-white">Order Medicine</h3>
               <button
@@ -394,13 +405,13 @@ const PharmacyBrowse = () => {
                     deliveryPhone: ''
                   });
                 }}
-                className="text-gray-400 hover:text-white transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-md bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 transition-all font-bold text-lg"
               >
                 ×
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-6 pb-10">
               <div className="bg-gray-800/40 p-4 rounded-lg border border-gray-700/30 mb-6">
                 <h4 className="text-sm font-bold text-white mb-3">{selectedMedicine.medicineName}</h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
@@ -471,7 +482,7 @@ const PharmacyBrowse = () => {
                   />
                 </div>
 
-                <div className="flex justify-end gap-3 pt-4">
+                <div className="flex justify-end gap-3 pt-8 pb-12">
                   <button
                     type="button"
                     onClick={() => {
@@ -492,6 +503,8 @@ const PharmacyBrowse = () => {
                     Place Order - ₹{(selectedMedicine.price * orderForm.quantity).toFixed(2)}
                   </button>
                 </div>
+                {/* Added spacer for better visibility */}
+                <div className="h-10" />
               </form>
             </div>
           </div>

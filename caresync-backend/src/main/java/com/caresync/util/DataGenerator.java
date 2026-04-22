@@ -15,6 +15,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 
 @Component
 public class DataGenerator {
@@ -46,12 +47,13 @@ public class DataGenerator {
         
         // Get all active queues
         List<Queue> queues = queueRepository.findAll().stream()
-                .filter(q -> q.getIsActive() && q.getQueueStatus() == Queue.QueueStatus.ACTIVE)
+                .filter(q -> Boolean.TRUE.equals(q.getIsActive()) && 
+                        q.getQueueStatus() != null && 
+                        q.getQueueStatus() == Queue.QueueStatus.ACTIVE)
                 .toList();
         
         if (queues.isEmpty()) {
-            System.out.println("No active queues found. Please create queues first.");
-            return;
+            throw new RuntimeException("No active queues found. Please create queues first.");
         }
         
         System.out.println("Found " + queues.size() + " active queues");
@@ -73,14 +75,21 @@ public class DataGenerator {
                 
                 // Generate 20-40 tokens per queue per day
                 int tokensForDay = 20 + random.nextInt(21);
-                tokensForDay = Math.min(tokensForDay, queue.getMaxCapacity());
+                int maxCapacity = queue.getMaxCapacity() != null ? queue.getMaxCapacity() : 0;
+                tokensForDay = Math.min(tokensForDay, maxCapacity);
                 
-                // Get existing tokens for this queue and date to avoid duplicates
-                List<QueueToken> existingTokens = tokenRepository.findByQueueAndTokenDateOrderByTokenNumberAsc(queue, date);
-                int startTokenNumber = existingTokens.size() + 1;
+                // Get existing tokens count to avoid duplicates
+                long existingCount = tokenRepository.countByQueueAndTokenDate(queue, date);
+                
+                // Use robust method to get next token number
+                int nextTokenNumber = tokenRepository.getMaxTokenNumberForQueueAndDate(queue.getQueueId(), date) + 1;
                 
                 // Only generate if there's room
-                int tokensToGenerate = Math.min(tokensForDay - existingTokens.size(), tokensForDay);
+                int tokensToGenerate = (int) Math.max(0, tokensForDay - existingCount);
+                
+                if (patients.isEmpty()) {
+                    throw new RuntimeException("No patients found to generate tokens for.");
+                }
                 
                 for (int i = 0; i < tokensToGenerate; i++) {
                     User patient = patients.get(random.nextInt(patients.size()));
@@ -90,8 +99,9 @@ public class DataGenerator {
                         continue;
                     }
                     
-                    QueueToken token = createHistoricalToken(queue, patient, startTokenNumber + i, date);
+                    QueueToken token = createHistoricalToken(queue, patient, nextTokenNumber, date);
                     tokenRepository.save(token);
+                    nextTokenNumber++;
                     totalTokens++;
                 }
             }
@@ -134,7 +144,7 @@ public class DataGenerator {
         token.setTokenDate(date);
         token.setTokenFee(new BigDecimal("50.00"));
         token.setPaymentStatus(QueueToken.PaymentStatus.COMPLETED);
-        token.setPaymentTransactionId("TEST_" + System.currentTimeMillis() + "_" + random.nextInt(10000));
+        token.setPaymentTransactionId("TEST_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase());
         
         // Simulate realistic token flow
         LocalTime startTime = queue.getStartTime() != null ? queue.getStartTime() : LocalTime.of(9, 0);

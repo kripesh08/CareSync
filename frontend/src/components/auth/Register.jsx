@@ -143,7 +143,7 @@ const Register = () => {
           <div className="bg-green-900/20 border border-green-800/50 p-4 rounded-xl backdrop-blur-sm animate-fade-in">
             <h3 className="text-sm font-semibold text-green-400">Patient Registration</h3>
             <p className="text-sm text-green-300 mt-1">
-              Complete your basic registration. Insurance details will be collected during booking if needed.
+              Complete your basic registration.
             </p>
           </div>
         );

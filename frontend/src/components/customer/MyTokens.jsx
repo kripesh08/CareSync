@@ -94,7 +94,7 @@ const MyTokens = () => {
   const handlePayment = async (tokenId) => {
     try {
       const token = localStorage.getItem('token');
-      
+
       // Create Razorpay order
       const orderResponse = await fetch(`http://localhost:8081/api/queue-tokens/${tokenId}/create-razorpay-order`, {
         method: 'POST',
@@ -107,7 +107,7 @@ const MyTokens = () => {
       }
 
       const orderData = await orderResponse.json();
-      
+
       // Open Razorpay checkout
       const options = {
         key: orderData.keyId,
@@ -154,7 +154,7 @@ const MyTokens = () => {
         toast.error('Payment failed: ' + response.error.description);
       });
       razorpay.open();
-      
+
     } catch (error) {
       toast.error('Failed to create payment order');
     }
@@ -183,19 +183,49 @@ const MyTokens = () => {
     }
   };
 
-  const calcEstimatedArrival = (queueStatus) => {
-    const { tokensAhead, avgTimePerPatient } = queueStatus;
-    if (tokensAhead == null) return null;
-    if (tokensAhead === 0) return { time: null, waitMins: 0, tokensAhead: 0 };
-    if (!avgTimePerPatient) return null;
-    const waitMins = tokensAhead * avgTimePerPatient;
-    const arrival = new Date(Date.now() + waitMins * 60000);
+  // Original predicted wait: based on full tokenNumber × avgTimePerPatient
+  // completedToday × avgTime = time already elapsed, so remaining = max(0, original - elapsed)
+  const calcEstimatedArrival = (queueStatus, queueStartTime) => {
+    const { tokensAhead, completedToday, avgTimePerPatient, tokenNumber } = queueStatus;
+    if (tokensAhead == null || !avgTimePerPatient) return null;
+
+    // Reconstruct tokenNumber from tokensAhead + completedToday + 1 (self)
+    // The backend already returns completedToday from queue-status
+    const myTokenNumber = tokenNumber || (tokensAhead + (completedToday || 0) + 1);
+
+    // Original formula estimate: (tokenNumber - 1) × avgTimePerPatient
+    // Subtracting 1 ensures the first patient has 0 wait time relative to start
+    const originalWaitMins = (myTokenNumber - 1) * avgTimePerPatient;
+
+    // Adjusted remaining: subtract time already consumed by completed tokens
+    const elapsedMins = (completedToday || 0) * avgTimePerPatient;
+    const adjustedWaitMins = Math.max(0, originalWaitMins - elapsedMins);
+
+    let baseTime = new Date();
+    if (queueStartTime) {
+      const [hours, minutes] = queueStartTime.split(':').map(Number);
+      const startDate = new Date();
+      startDate.setHours(hours, minutes, 0, 0);
+      if (startDate > baseTime) baseTime = startDate;
+    }
+
+    const arrivalOriginal = new Date(baseTime.getTime() + originalWaitMins * 60000);
+    const arrivalAdjusted = new Date(baseTime.getTime() + adjustedWaitMins * 60000);
+
+    const remainingMins = Math.max(0, Math.floor((arrivalAdjusted.getTime() - Date.now()) / 60000));
+
     return {
-      time: arrival.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
-      waitMins,
+      time: arrivalAdjusted.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      originalTime: arrivalOriginal.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      waitMins: remainingMins,
+      originalWaitMins,
+      adjustedWaitMins,
+      elapsedMins,
+      completedToday: completedToday || 0,
       tokensAhead
     };
   };
+
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -277,8 +307,8 @@ const MyTokens = () => {
                       </div>
                       <div>
                         <div className="text-3xl font-bold text-blue-400">
-                        {token.tokenNumber ? `#${token.tokenNumber}` : <span className="text-lg text-yellow-400">Pending Payment</span>}
-                      </div>
+                          {token.tokenNumber ? `#${token.tokenNumber}` : <span className="text-lg text-yellow-400">Pending Payment</span>}
+                        </div>
                         <div className="text-sm text-gray-400">{token.queue.queueName}</div>
                       </div>
                     </div>
@@ -321,10 +351,10 @@ const MyTokens = () => {
                         }
                         if (token.tokenStatus === 'WAITING') {
                           if (qs) {
-                            if (qs.tokensAhead === 0) {
+                            if (qs.tokensAhead < 0) { // Never true, but keeping the structure
                               return <div className="text-yellow-400 text-xs mt-1 font-medium">Your turn soon</div>;
                             }
-                            const live = calcEstimatedArrival(qs);
+                            const live = calcEstimatedArrival(qs, token.queue.startTime);
                             if (live?.time) {
                               return <div className="text-blue-400 text-xs mt-1">Est: ~{live.time}</div>;
                             }
@@ -342,11 +372,10 @@ const MyTokens = () => {
                   {/* Payment Status */}
                   <div className="mt-3 flex items-center gap-2 text-sm">
                     <span className="text-gray-400">Payment:</span>
-                    <span className={`font-bold ${
-                      token.paymentStatus === 'COMPLETED' ? 'text-emerald-400' :
-                      token.paymentStatus === 'PENDING' ? 'text-yellow-400' :
-                      'text-red-400'
-                    }`}>
+                    <span className={`font-bold ${token.paymentStatus === 'COMPLETED' ? 'text-emerald-400' :
+                        token.paymentStatus === 'PENDING' ? 'text-yellow-400' :
+                          'text-red-400'
+                      }`}>
                       {token.paymentStatus}
                     </span>
                     {token.paymentStatus === 'COMPLETED' && (
@@ -357,30 +386,43 @@ const MyTokens = () => {
                   {/* Status Messages */}
                   {['WAITING', 'IN_PROGRESS', 'PENDING_PAYMENT'].includes(token.tokenStatus) && queueStatuses[token.tokenId] && (() => {
                     const qs = queueStatuses[token.tokenId];
-                    const arrival = calcEstimatedArrival(qs);
+                    const arrival = calcEstimatedArrival(qs, token.queue.startTime);
                     return (
                       <div className="mt-3 space-y-2">
                         {/* Estimated arrival — prominent card */}
-                        {token.tokenStatus === 'WAITING' && qs.tokensAhead > 0 && (() => {
-                          const arrival = calcEstimatedArrival(qs);
+                        {token.tokenStatus === 'WAITING' && qs.tokensAhead >= 0 && (() => {
+                          const arrival = calcEstimatedArrival(qs, token.queue.startTime);
                           if (!arrival?.time) return null;
+                          const showAdjusted = arrival.completedToday > 0 && arrival.adjustedWaitMins < arrival.originalWaitMins;
                           return (
-                            <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/20 flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <Clock className="h-5 w-5 text-blue-400 shrink-0" />
-                                <div>
-                                  <p className="text-xs text-gray-400">Estimated time to visit</p>
-                                  <p className="text-xl font-bold text-blue-400">{arrival.time}</p>
+                            <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/20">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <Clock className="h-5 w-5 text-blue-400 shrink-0" />
+                                  <div>
+                                    <p className="text-xs text-gray-400">Estimated time to visit</p>
+                                    <p className="text-xl font-bold text-blue-400">{arrival.time}</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs text-gray-400">Wait</p>
+                                  <p className="text-lg font-bold text-white">
+                                    {arrival.waitMins < 60
+                                      ? `~${arrival.waitMins} min`
+                                      : `~${Math.floor(arrival.waitMins / 60)}h ${arrival.waitMins % 60}m`}
+                                  </p>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <p className="text-xs text-gray-400">Wait</p>
-                                <p className="text-lg font-bold text-white">
-                                  {arrival.waitMins < 60
-                                    ? `~${arrival.waitMins} min`
-                                    : `~${Math.floor(arrival.waitMins / 60)}h ${arrival.waitMins % 60}m`}
-                                </p>
-                              </div>
+                              {showAdjusted && (
+                                <div className="mt-2 pt-2 border-t border-blue-500/20 flex items-center justify-between text-xs">
+                                  <span className="text-gray-400">
+                                    ⚡ {arrival.completedToday} token{arrival.completedToday > 1 ? 's' : ''} completed — queue moving faster
+                                  </span>
+                                  <span className="text-emerald-400 font-medium">
+                                    ~{arrival.adjustedWaitMins} min remaining
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           );
                         })()}
@@ -403,7 +445,7 @@ const MyTokens = () => {
                           </div>
                         </div>
 
-                        {qs.tokensAhead === 0 && token.tokenStatus === 'WAITING' && (
+                        {qs.tokensAhead === 0 && token.tokenStatus === 'WAITING' && token.tokenNumber && (
                           <div className="bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20">
                             <p className="text-sm text-yellow-400 font-medium">⚡ You're next! Please be ready at the hospital.</p>
                           </div>

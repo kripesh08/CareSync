@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Users, Clock, MapPin, Building2, Ticket, AlertCircle, Calendar, X } from 'lucide-react';
+import { Search, Users, Clock, MapPin, Building2, Ticket, AlertCircle, Calendar, X, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
@@ -11,6 +11,8 @@ const QueueSearch = () => {
   const [selectedQueue, setSelectedQueue] = useState(null);
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedDateForView, setSelectedDateForView] = useState(new Date().toISOString().split('T')[0]);
+  const [prediction, setPrediction] = useState(null);
+  const [loadingPrediction, setLoadingPrediction] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,6 +50,26 @@ const QueueSearch = () => {
     }
   };
 
+  const fetchPrediction = async (queue, date) => {
+    setLoadingPrediction(true);
+    setPrediction(null);
+    try {
+      const nextTokenNumber = (queue?.bookedCount || 0) + 1;
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `http://localhost:8081/api/admin/data/predict?queueId=${queue.queueId}&date=${date}&tokenNumber=${nextTokenNumber}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (response.ok) {
+        setPrediction(await response.json());
+      }
+    } catch (error) {
+      // prediction is optional, fail silently
+    } finally {
+      setLoadingPrediction(false);
+    }
+  };
+
   const handleBookToken = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -67,6 +89,7 @@ const QueueSearch = () => {
         const tokenData = await response.json();
         toast.success('Token booked successfully! Please complete payment.');
         setShowBookingModal(false);
+        setPrediction(null);
         
         // Redirect to payment
         handlePayment(tokenData.tokenId);
@@ -322,6 +345,7 @@ const QueueSearch = () => {
                           setSelectedQueue(queue);
                           setBookingDate(selectedDateForView);
                           setShowBookingModal(true);
+                          fetchPrediction(queue, selectedDateForView);
                         }}
                         disabled={!isAvailable}
                         className={`w-full text-sm flex items-center justify-center gap-2 ${
@@ -382,11 +406,48 @@ const QueueSearch = () => {
                 <input
                   type="date"
                   value={bookingDate}
-                  onChange={(e) => setBookingDate(e.target.value)}
+                  onChange={(e) => {
+                    setBookingDate(e.target.value);
+                    fetchPrediction(selectedQueue, e.target.value);
+                  }}
                   min={new Date().toISOString().split('T')[0]}
                   className="input-saas w-full"
                 />
               </div>
+
+              {/* AI Prediction */}
+              {loadingPrediction && (
+                <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 animate-pulse">
+                  <p className="text-sm text-gray-400">Calculating estimated wait time...</p>
+                </div>
+              )}
+              {prediction && !loadingPrediction && (
+                <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-4 rounded-lg border border-blue-500/20">
+                  <div className="flex items-start gap-3">
+                    <TrendingUp className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-blue-400 mb-2">AI Prediction</p>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <span className="text-gray-400">Estimated Wait:</span>
+                          <span className="text-white font-bold ml-2">{prediction.formattedWaitingTime}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Avg Time/Token:</span>
+                          <span className="text-white font-medium ml-2">{Math.round(prediction.averageTimePerToken)} min</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Peak Hour:</span>
+                          <span className="text-white font-medium ml-2">{prediction.peakHoursInfo.peakHourRange}</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2">
+                        Based on historical data from {prediction.dayOfWeek.toLowerCase()}s • {prediction.confidenceLevel} confidence
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="bg-blue-500/10 p-3 rounded-lg border border-blue-500/20">
                 <p className="text-xs text-gray-300">
@@ -400,6 +461,7 @@ const QueueSearch = () => {
                   onClick={() => {
                     setShowBookingModal(false);
                     setSelectedQueue(null);
+                    setPrediction(null);
                   }}
                   className="btn-saas-secondary"
                 >
