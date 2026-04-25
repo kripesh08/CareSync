@@ -58,8 +58,8 @@ public class DataGenerator {
         
         System.out.println("Found " + queues.size() + " active queues");
         
-        // Generate tokens for past 30 days
-        LocalDate startDate = LocalDate.now().minusDays(30);
+        // Generate tokens for past 60 days
+        LocalDate startDate = LocalDate.now().minusDays(60);
         LocalDate endDate = LocalDate.now().minusDays(1);
         
         int totalTokens = 0;
